@@ -2,10 +2,16 @@
 
 # داشبورد مدیریت معاملات گریفین 
 
-[](https://www.gnu.org/licenses/gpl-3.0)
-[](https://react.dev/)
-[](https://www.electronjs.org/)
-[](https://www.typescriptlang.org/)
+[![GPL v3 License](https://img.shields.io/badge/License-GPLv3-blue.svg?logo=gnu&logoColor=white)](https://www.gnu.org/licenses/gpl-3.0)
+[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Electron](https://img.shields.io/badge/Electron-2B2E3A?logo=electron&logoColor=9FEAF9)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+
+![Logo](https://github.com/daedalusfx/GriffinATM/raw/main/assets/icon.jpg)
+
+
+![Preview](https://github.com/daedalusfx/GriffinATM/raw/main/screenshots/preview.png)
 
 یک نرم‌افزار دسکتاپ کراس-پلتفرم (ویندوز، مک، لینوکس) برای مدیریت و نظارت زنده بر معاملات مالی که با استفاده از Electron و React توسعه داده شده است.
 
@@ -93,3 +99,96 @@
 ## 📄 لایسنس
 
 این پروژه تحت لایسنس **GNU General Public License v3.0** منتشر شده است. برای مشاهده جزئیات کامل، فایل `LICENSE` را مطالعه کنید.
+
+
+
+# Griffin  Atm  Dashboard [English]
+
+
+
+A cross-platform (Windows, Mac, Linux) desktop software for managing and monitoring live financial trades developed using Electron and React.
+
+The dashboard connects to your trading platform via a WebSocket connection, allowing you to view your open trades and quickly take management actions.
+
+*(Note: The image above is an example and should be replaced with the actual screenshot of the application)*
+
+## ✨ Features
+
+- **Live Trades View:** View all open trades along with details such as profit/loss, volume, type and symbol.
+- **Total P&L:** View the total P&L of all trades in real time.
+- **Advanced Trade Management:**
+- **Breakeven:** Move the stop loss to the entry point with one click.
+- **Auto Management (ATM):** Enable or disable the automatic management system for each trade.
+- **Close Trade:** Close each trade individually.
+- **Group Operations:**
+- Close all trades.
+- Close all trades in profit.
+- Close all trades in loss.
+- **Progress Bar:** Graphically display the progress of profit or loss for each trade based on ATM settings.
+- **Auto Management Settings:** Ability to define the profit percentage for ATM activation, the percentage of closing part of the volume and automatic risk-free activation.
+- **Light and Dark Theme:** Beautiful user interface with the ability to choose a custom theme.
+- **Connection Status:** Graphically display the connection status to the WebSocket server.
+
+## 🛠️ Technologies used
+
+- **Main framework:** [Electron](https://www.electronjs.org/)
+- **User interface:** [React](https://reactjs.org/), [Material-UI (MUI)](https://mui.com/)
+- **Programming language:** [TypeScript](https://www.typescriptlang.org/)
+- **Builder:** [Vite](https://vitejs.dev/), [Electron-Builder](https://www.electron.build/)
+
+## ‼️ Important prerequisite
+
+This application is a **client**. To function correctly, it requires a **WebSocket server** running at `ws://localhost:5000`. This server must send trading data in a specific format that the application expects. (For example, a script or expert in MetaTrader 4/5).
+
+## 🚀 Setup and Run
+
+To run this project in Development mode, follow these steps:
+
+1. **Clone the project:**
+
+```bash
+git clone https://github.com/daedalusfx/Griffin-Atm-Dashboard.git
+cd Griffin-Atm-Dashboard
+```
+
+2. **Install dependencies:**
+It is recommended to use `pnpm` or `npm`.
+
+```bash
+npm install
+```
+
+3. **Run the program:**
+This command runs the program in development mode.
+
+```bash
+npm run dev
+```
+
+## 📦 Build
+
+You can build an installable version for different operating systems using the scripts in the `package.json` file.
+
+- **Build for Windows:**
+
+```bash
+npm run build:win
+```
+
+- **Build for macOS:**
+
+```bash
+npm run build:mac
+```
+
+- **Build for Linux:**
+
+```bash
+npm run build:linux
+```
+
+The output files will be built in the `dist` directory.
+
+## 📄 License
+
+This project is released under the **GNU General Public License v3.0**. For full details, see the `LICENSE` file.
