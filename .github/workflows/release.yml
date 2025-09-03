@@ -6,43 +6,6 @@ on:
       - 'v*.*.*'
 
 jobs:
-  # جاب اول: بیلد فقط برای macOS روی یک ماشین مجازی مک
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build for macOS
-        run: pnpm run build:mac # این دستور خودش شامل مرحله vite:build:app است
-        env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-
-      - name: Upload macOS Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*-mac.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   # جاب دوم: بیلد برای لینوکس و ویندوز روی یک ماشین مجازی لینوکس
   build-linux-win:
     runs-on: ubuntu-latest
