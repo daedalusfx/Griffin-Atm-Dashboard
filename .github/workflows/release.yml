@@ -1,56 +1,72 @@
-# نام این گردش کار
-name: Create GitHub Release
+# نام گردش کار
+name: Build & Release Electron App
 
-# تعریف تریگر (محرک) برای اجرا شدن این گردش کار
+# تریگر: اجرا روی پوش تگ‌های v*.*.*
 on:
   push:
-    # این گردش کار فقط زمانی اجرا می‌شود که یک تگ جدید با الگوی v*.*.* پوش شود
-    # مثال: v1.0.0, v1.2.3, v2.0.0-beta.1
     tags:
       - 'v*.*.*'
 
-# تعریف جاب‌ها (مراحل اجرایی)
 jobs:
-  build-and-release:
-    # مشخص کردن سیستم‌عاملی که جاب روی آن اجرا می‌شود (آخرین نسخه اوبونتو)
-    runs-on: ubuntu-latest
+  # تعریف یک جاب که با استراتژی ماتریس برای پلتفرم‌های مختلف اجرا می‌شود
+  build-release:
+    # نام جاب به صورت داینامیک بر اساس پلتفرم تنظیم می‌شود
+    name: Build on ${{ matrix.platform }}
 
-    # مراحل اجرایی جاب
+    # استراتژی ماتریس: این جاب را برای هر آیتم در لیست platform اجرا کن
+    strategy:
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    # مشخص کردن سیستم‌عامل هر جاب بر اساس مقدار ماتریس
+    runs-on: ${{ matrix.platform }}
+
     steps:
-      # مرحله اول: دریافت کد پروژه از مخزن گیت‌هاب
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # مرحله دوم: نصب و راه‌اندازی Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # می‌توانید نسخه دلخواه خود را مشخص کنید
-          cache: 'npm'      # کش کردن پکیج‌ها برای سرعت بیشتر در اجراهای بعدی
+          node-version: '20'
+          cache: 'npm'
 
-      # مرحله سوم: نصب وابستگی‌های پروژه بر اساس فایل package.json
       - name: Install dependencies
         run: npm install
 
-      # مرحله چهارم: بیلد کردن پروژه با استفاده از اسکریپت build
-      # این دستور بر اساس package.json شما tsc و vite build را اجرا می‌کند
-      - name: Build project
-        run: npm run build
+      # مرحله بیلد: اجرای دستور مناسب بر اساس سیستم‌عامل
+      - name: Build for Windows
+        if: matrix.platform == 'windows-latest'
+        run: npm run build:win
 
-      # مرحله پنجم: فشرده‌سازی فایل‌های خروجی در پوشه dist
-      # نام فایل فشرده به صورت داینامیک بر اساس نام تگ ساخته می‌شود
-      - name: Package release assets
-        run: |
-          cd dist
-          tar -czf ../${{ github.ref_name }}.tar.gz .
-          cd ..
+      - name: Build for macOS
+        if: matrix.platform == 'macos-latest'
+        run: npm run build:mac
+        # بیلد برای مک معمولاً به متغیرهای Code Signing نیاز دارد
+        # اگر در پروژه خود code signing ندارید، این بخش env را حذف کنید
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
-      # مرحله ششم: ایجاد Release در گیت‌هاب و آپلود فایل فشرده
-      - name: Create Release and Upload Asset
+      - name: Build for Linux
+        if: matrix.platform == 'ubuntu-latest'
+        run: npm run build:linux
+
+      # مرحله آخر: ایجاد Release و آپلود خروجی‌ها
+      # این اکشن به صورت هوشمند خروجی‌های هر سه جاب را در یک Release جمع می‌کند
+      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          # مشخص کردن فایلی که باید آپلود شود
-          files: ${{ github.ref_name }}.tar.gz
+          # با استفاده از wildcard تمام فایل‌های خروجی electron-builder را پیدا می‌کنیم
+          # پوشه خروجی معمولاً dist است
+          files: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.snap
+            dist/*.dmg
+            dist/*.zip
+            dist/*-mac.zip
         env:
-          # توکن دسترسی که به صورت خودکار توسط گیت‌هاب برای این اکشن فراهم می‌شود
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
