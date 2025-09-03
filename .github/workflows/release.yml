@@ -1,0 +1,56 @@
+# نام این گردش کار
+name: Create GitHub Release
+
+# تعریف تریگر (محرک) برای اجرا شدن این گردش کار
+on:
+  push:
+    # این گردش کار فقط زمانی اجرا می‌شود که یک تگ جدید با الگوی v*.*.* پوش شود
+    # مثال: v1.0.0, v1.2.3, v2.0.0-beta.1
+    tags:
+      - 'v*.*.*'
+
+# تعریف جاب‌ها (مراحل اجرایی)
+jobs:
+  build-and-release:
+    # مشخص کردن سیستم‌عاملی که جاب روی آن اجرا می‌شود (آخرین نسخه اوبونتو)
+    runs-on: ubuntu-latest
+
+    # مراحل اجرایی جاب
+    steps:
+      # مرحله اول: دریافت کد پروژه از مخزن گیت‌هاب
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # مرحله دوم: نصب و راه‌اندازی Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # می‌توانید نسخه دلخواه خود را مشخص کنید
+          cache: 'npm'      # کش کردن پکیج‌ها برای سرعت بیشتر در اجراهای بعدی
+
+      # مرحله سوم: نصب وابستگی‌های پروژه بر اساس فایل package.json
+      - name: Install dependencies
+        run: npm install
+
+      # مرحله چهارم: بیلد کردن پروژه با استفاده از اسکریپت build
+      # این دستور بر اساس package.json شما tsc و vite build را اجرا می‌کند
+      - name: Build project
+        run: npm run build
+
+      # مرحله پنجم: فشرده‌سازی فایل‌های خروجی در پوشه dist
+      # نام فایل فشرده به صورت داینامیک بر اساس نام تگ ساخته می‌شود
+      - name: Package release assets
+        run: |
+          cd dist
+          tar -czf ../${{ github.ref_name }}.tar.gz .
+          cd ..
+
+      # مرحله ششم: ایجاد Release در گیت‌هاب و آپلود فایل فشرده
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          # مشخص کردن فایلی که باید آپلود شود
+          files: ${{ github.ref_name }}.tar.gz
+        env:
+          # توکن دسترسی که به صورت خودکار توسط گیت‌هاب برای این اکشن فراهم می‌شود
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
