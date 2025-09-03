@@ -1,72 +1,81 @@
-# نام گردش کار
 name: Build & Release Electron App
 
-# تریگر: اجرا روی پوش تگ‌های v*.*.*
 on:
   push:
     tags:
       - 'v*.*.*'
 
 jobs:
-  # تعریف یک جاب که با استراتژی ماتریس برای پلتفرم‌های مختلف اجرا می‌شود
-  build-release:
-    # نام جاب به صورت داینامیک بر اساس پلتفرم تنظیم می‌شود
-    name: Build on ${{ matrix.platform }}
-
-    # استراتژی ماتریس: این جاب را برای هر آیتم در لیست platform اجرا کن
-    strategy:
-      matrix:
-        platform: [macos-latest, ubuntu-latest, windows-latest]
-
-    # مشخص کردن سیستم‌عامل هر جاب بر اساس مقدار ماتریس
-    runs-on: ${{ matrix.platform }}
-
+  # جاب اول: بیلد فقط برای macOS روی یک ماشین مجازی مک
+  build-macos:
+    runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8 # می‌توانید نسخه pnpm را مشخص کنید
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm' # کش کردن وابستگی‌ها برای pnpm
 
       - name: Install dependencies
-        run: npm install
-
-      # مرحله بیلد: اجرای دستور مناسب بر اساس سیستم‌عامل
-      - name: Build for Windows
-        if: matrix.platform == 'windows-latest'
-        run: npm run build:win
+        run: pnpm install
 
       - name: Build for macOS
-        if: matrix.platform == 'macos-latest'
-        run: npm run build:mac
-        # بیلد برای مک معمولاً به متغیرهای Code Signing نیاز دارد
-        # اگر در پروژه خود code signing ندارید، این بخش env را حذف کنید
+        run: pnpm run build:mac
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
-      - name: Build for Linux
-        if: matrix.platform == 'ubuntu-latest'
-        run: npm run build:linux
-
-      # مرحله آخر: ایجاد Release و آپلود خروجی‌ها
-      # این اکشن به صورت هوشمند خروجی‌های هر سه جاب را در یک Release جمع می‌کند
-      - name: Upload Release Assets
+      - name: Upload macOS Asset
         uses: softprops/action-gh-release@v2
         with:
-          # با استفاده از wildcard تمام فایل‌های خروجی electron-builder را پیدا می‌کنیم
-          # پوشه خروجی معمولاً dist است
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*-mac.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # جاب دوم: بیلد برای لینوکس و ویندوز روی یک ماشین مجازی لینوکس
+  build-linux-win:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build for Linux and Windows
+        # دستور --linux --win به electron-builder می‌گوید برای هر دو پلتفرم خروجی بسازد
+        run: pnpm electron-builder --linux --win
+
+      - name: Upload Linux & Windows Assets
+        uses: softprops/action-gh-release@v2
+        with:
           files: |
             dist/*.exe
             dist/*.msi
             dist/*.AppImage
             dist/*.deb
             dist/*.snap
-            dist/*.dmg
-            dist/*.zip
-            dist/*-mac.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
