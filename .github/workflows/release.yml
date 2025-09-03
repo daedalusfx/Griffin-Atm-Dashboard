@@ -27,6 +27,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      # ******** مرحله جدید برای نصب ابزارهای مورد نیاز ********
+      - name: Install build dependencies (Wine and Snapcraft)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wine64
+          sudo snap install snapcraft --classic
+
       - name: Build for Linux and Windows
         run: |
           pnpm run vite:build:app
