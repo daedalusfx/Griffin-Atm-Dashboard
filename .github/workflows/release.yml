@@ -56,7 +56,7 @@ jobs:
           path: dist/
 
   # این جاب پس از اتمام موفقیت‌آمیز تمام بیلدهای بالا اجرا می‌شود
-release:
+  release:
     needs: build
     runs-on: ubuntu-latest
     steps:
