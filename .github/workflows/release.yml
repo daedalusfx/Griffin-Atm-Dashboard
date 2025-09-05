@@ -9,8 +9,13 @@ permissions:
   contents: write
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  # این جاب به صورت موازی روی ویندوز و لینوکس اجرا می‌شود
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest] # سیستم‌عامل‌های مورد نظر
+
+    runs-on: ${{ matrix.os }} # اجرا روی هر سیستم‌عامل از ماتریکس
 
     steps:
       - name: Checkout code
@@ -30,33 +35,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      # ***** مرحله جدید و ضروری *****
       - name: Build Application Source Code
         run: pnpm run vite:build:app
 
-      - name: Build for Linux (.deb & .AppImage)
+      # دستور بیلد مخصوص لینوکس
+      - name: Build for Linux
+        if: runner.os == 'Linux' # این مرحله فقط روی لینوکس اجرا می‌شود
         run: pnpm electron-builder --linux deb AppImage
 
+      # دستور بیلد مخصوص ویندوز
+      - name: Build for Windows
+        if: runner.os == 'Windows' # این مرحله فقط روی ویندوز اجرا می‌شود
+        run: pnpm electron-builder --win
+
+      # آپلود خروجی‌ها با نامی منحصر به فرد برای هر سیستم‌عامل
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-linux
+          name: dist-${{ matrix.os }}
           path: dist/
 
+  # این جاب پس از اتمام موفقیت‌آمیز تمام بیلدهای بالا اجرا می‌شود
   release:
-    needs: build-linux
+    needs: build # منتظر اتمام جاب build می‌ماند
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download build artifact
+      # دانلود تمام آرتیفکت‌های ساخته شده (هم ویندوز و هم لینوکس)
+      - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist-linux
-          path: release-assets/
+          path: release-assets/ # همه را در این پوشه دانلود می‌کند
 
+      # ساخت ریلیز و ضمیمه کردن تمام فایل‌های دانلود شده
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release-assets/*
+          files: release-assets/**/* # تمام فایل‌های درون تمام پوشه‌ها را انتخاب می‌کند
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
