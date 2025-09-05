@@ -3,12 +3,18 @@ name: Build & Release Electron App
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*' # فقط زمانی اجرا می‌شود که یک تگ جدید پوش شود
 
 jobs:
-  # جاب دوم: بیلد برای لینوکس و ویندوز روی یک ماشین مجازی لینوکس
-  build-linux-win:
-    runs-on: ubuntu-latest
+  # یک جاب برای بیلد گرفتن روی پلتفرم‌های مختلف با استفاده از استراتژی ماتریکس
+  build:
+    # مشخص می‌کنیم که این جاب روی چه سیستم‌عامل‌هایی اجرا شود
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }} # اجرای جاب روی سیستم‌عامل مشخص شده در ماتریکس
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,26 +33,51 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      # ******** مرحله جدید برای نصب ابزارهای مورد نیاز ********
-      - name: Install build dependencies (Wine and Snapcraft)
+      # ***** فقط برای لینوکس: نصب پیش‌نیازهای بیلد *****
+      - name: Install Linux build dependencies
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y wine64
+          sudo apt-get install -y snapd
           sudo snap install snapcraft --classic
 
-      - name: Build for Linux and Windows
+      # اجرای اسکریپت‌های بیلد بر اساس سیستم‌عامل
+      - name: Build Electron App
         run: |
-          pnpm run vite:build:app
-          pnpm electron-builder --linux --win
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            pnpm run build:linux
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            pnpm run build:win
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            pnpm run build:mac
+          fi
+        # برای بیلد ویندوز و مک، نیاز به کد ساینینگ است که اینجا ساده‌سازی شده
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
-      - name: Upload Linux & Windows Assets
+      # آپلود فایل‌های خروجی به عنوان آرتیفکت
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }} # نام آرتیفکت بر اساس سیستم‌عامل
+          path: dist/ # مسیری که فایل‌های بیلد شده در آن قرار دارند
+
+  # جاب دوم: ایجاد Release در گیت‌هاب پس از اتمام تمام بیلدهای موفق
+  release:
+    needs: build # این جاب به جاب build وابسته است
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/ # تمام آرتیفکت‌ها در این پوشه دانلود می‌شوند
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/*.exe
-            dist/*.msi
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.snap
+          # فایل‌های تمام آرتیفکت‌های دانلود شده را به Release ضمیمه می‌کند
+          files: artifacts/**/*/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
