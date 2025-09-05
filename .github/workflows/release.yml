@@ -3,10 +3,9 @@ name: Build & Release Electron App
 on:
   push:
     tags:
-      - 'v*.*.*' # فقط زمانی اجرا می‌شود که یک تگ جدید پوش شود
+      - 'v*.*.*'
 
 jobs:
-  # جاب برای بیلد گرفتن فقط روی لینوکس
   build-linux:
     runs-on: ubuntu-latest
 
@@ -28,32 +27,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      # ***** مرحله جدید و ضروری *****
+      - name: Build Application Source Code
+        run: pnpm run vite:build:app
+
       - name: Build for Linux (.deb & .AppImage)
-        # دستور مستقیم برای ساخت فرمت‌های مورد نظر
         run: pnpm electron-builder --linux deb AppImage
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist-linux # نام آرتیفکت
-          path: dist/*.{deb,AppImage} # فقط فایل‌های deb و AppImage را آپلود می‌کند
+          name: dist-linux
+          path: dist/*.{deb,AppImage}
 
-  # جاب دوم: ایجاد Release در گیت‌هاب
   release:
-    needs: build-linux # این جاب به جاب بیلد لینوکس وابسته است
+    needs: build-linux
     runs-on: ubuntu-latest
 
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist-linux # آرتیفکت ساخته شده در جاب قبلی را دانلود می‌کند
+          name: dist-linux
           path: release-assets/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # تمام فایل‌های دانلود شده را به Release ضمیمه می‌کند
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
