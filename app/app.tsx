@@ -2,19 +2,14 @@
 // FILE: src/renderer/App.tsx
 // توضیحات: نسخه نهایی با چرخه بازخورد واقعی و دکمه هوشمند ریسک-فری
 // =================================================================
-import React, { useState, useEffect, useMemo } from 'react';
-// import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   createTheme,
   ThemeProvider,
   CssBaseline,
   Box,
-  AppBar,
-  Toolbar,
   Typography,
   Button,
-  Chip,
-  IconButton,
   Tooltip,
   Container,
   Dialog,
@@ -23,21 +18,16 @@ import {
   DialogActions,
   TextField,
   Switch,
-  FormControlLabel,
-  CircularProgress,
-  alpha,
-  keyframes,
-  LinearProgress,
+  FormControlLabel, keyframes
 } from '@mui/material';
 import {
-  Brightness4,
-  Brightness7,
-  Settings as SettingsIcon,
-  Wifi,
-  WifiOff,
-  InfoOutlined,
+  Wifi
 } from '@mui/icons-material';
 import toast, { Toaster } from 'react-hot-toast';
+import { DashboardHeader } from './components/DashboardHeader';
+import { TradeList } from './components/TradeList';
+import { ActionBar } from './components/ActionBar';
+import { Settings, Trade, CommandPayload } from './components/types';
 
 // --- ENUMS & INTERFACES ---
 enum ConnectionStatus {
@@ -46,27 +36,7 @@ enum ConnectionStatus {
   Connecting = 'connecting',
 }
 
-interface Trade {
-  ticket: number;
-  symbol: string;
-  type: string;
-  volume: number;
-  profit: number;
-  atm_enabled: boolean;
-  is_breakeven: boolean;
-  progress_percent: number;
-}
 
-interface Settings {
-  triggerPercent?: number;
-  moveToBE?: boolean;
-  closePercent?: number;
-}
-
-interface CommandPayload {
-  action: string;
-  [key: string]: any;
-}
 
 // --- STYLES & ANIMATIONS ---
 const blinkAnimation = keyframes`
@@ -197,7 +167,7 @@ export function Dashboard() {
   const hasLosses = useMemo(() => trades.some((t) => t.profit < 0), [trades]);
   const hasTrades = useMemo(() => trades.length > 0, [trades]);
 
-  const handleSendCommand = async (command: CommandPayload, loadingKey: string) => {
+  const handleSendCommand = useCallback(async (command: CommandPayload, loadingKey: string) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       toast.error('اتصال با سرور برقرار نیست!');
       return;
@@ -214,12 +184,30 @@ export function Dashboard() {
         setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
       }, 500);
     }
-  };
+  }, [ws]); // وابستگی به ws، تا در صورت تغییر اتصال، تابع جدید ساخته شود
   
 
-  const openConfirmation = (title: string, description: string, command: CommandPayload, loadingKey: string) => {
-    setConfirmState({ isOpen: true, title, description, onConfirm: () => { handleSendCommand(command, loadingKey); setConfirmState({ isOpen: false, title: '', description: '', onConfirm: null }); } });
-  };
+  const openConfirmation = useCallback((title: string, description: string, action: string, loadingKey: string) => {
+    setConfirmState({
+      isOpen: true,
+      title,
+      description,
+      onConfirm: () => {
+        handleSendCommand({ action }, loadingKey);
+        setConfirmState({ isOpen: false, title: '', description: '', onConfirm: null });
+      }
+    });
+  }, [handleSendCommand]); // وابستگی به handleSendCommand
+
+
+  const handleToggleTheme = useCallback(() => {
+    setThemeMode(prev => (prev === 'light' ? 'dark' : 'light'));
+  }, []);
+  
+
+  const handleOpenSettings = useCallback(() => {
+    setSettingsOpen(true);
+  }, []);
 
   const getConnectionIcon = () => {
     let color: "success" | "error" | "warning" = "warning";
@@ -233,105 +221,59 @@ export function Dashboard() {
     return <Tooltip title={connectionStatus}><Wifi sx={{ color: `${color}.main`, ...animation }} /></Tooltip>;
   };
 
-  const TradeListHeader = () => (
-    <Box sx={{ display: 'flex', width: '100%', px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-      <Typography sx={{ flex: 1.5, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>تیکت</Typography>
-      <Typography sx={{ flex: 1, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>نماد</Typography>
-      <Typography sx={{ flex: 1, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>نوع</Typography>
-      <Typography sx={{ flex: 1, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>حجم</Typography>
-      <Typography sx={{ flex: 1, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>سود</Typography>
-      <Typography sx={{ flex: 2, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>پیشرفت</Typography>
-      <Typography sx={{ flex: 1, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>ATM</Typography>
-      <Typography sx={{ flex: 2, textAlign: 'center', fontWeight: 'bold', color: 'text.secondary' }}>اقدامات</Typography>
-    </Box>
-  );
-
-  const TradeRow = ({ trade }: { trade: Trade }) => {
-    const atmKey = `atm_${trade.ticket}`;
-    const beKey = `be_${trade.ticket}`;
-    const restoreBeKey = `restore_be_${trade.ticket}`;
-    const closeKey = `close_${trade.ticket}`;
-  
-    const progressValue = trade.progress_percent || 0;
-
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 2, py: 1, bgcolor: alpha(trade.profit > 0 ? theme.palette.success.main : trade.profit < 0 ? theme.palette.error.main : theme.palette.background.paper, 0.15), borderRadius: 2, mb: 1 }}>
-        <Typography sx={{ flex: 1.5, textAlign: 'center' }}>{trade.ticket}</Typography>
-        <Typography sx={{ flex: 1, textAlign: 'center' }}>{trade.symbol}</Typography>
-        <Typography sx={{ flex: 1, textAlign: 'center' }}>{trade.type}</Typography>
-        <Typography sx={{ flex: 1, textAlign: 'center' }}>{trade.volume.toFixed(2)}</Typography>
-        <Typography sx={{ flex: 1, textAlign: 'center', fontWeight: 'bold', color: trade.profit >= 0 ? 'success.main' : 'error.main' }}>{trade.profit.toFixed(2)} $</Typography>
-             {/* <<< بخش جدید برای نمایش نوار پیشرفت >>> */}
-      <Box sx={{ flex: 2, textAlign: 'center', px: 1 }}>
-        <LinearProgress
-          variant="determinate"
-          value={Math.abs(progressValue)} // مقدار باید همیشه مثبت باشد
-          color={progressValue >= 0 ? "success" : "error"} // رنگ بر اساس سود یا ضرر
-          sx={{ height: 8, borderRadius: 4, mb: 0.5 }}
+return (
+  <ThemeProvider theme={theme}>
+    <Toaster 
+      position="top-center" 
+      toastOptions={{ 
+        style: { background: '#334155', color: '#e2e8f0' } 
+      }} 
+    />
+    <CssBaseline />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
+      
+      {/* کامپوننت بهینه شده هدر */}
+      <DashboardHeader
+        symbol={symbol}
+        connectionIcon={getConnectionIcon()}
+        themeMode={themeMode}
+        onToggleTheme={handleToggleTheme}
+        onOpenSettings={handleOpenSettings}
+      />
+      
+      <Container maxWidth="xl" sx={{ flexGrow: 1, py: 2, display: 'flex', flexDirection: 'column' }}>
+        {/* کامپوننت بهینه شده لیست معاملات */}
+        <TradeList
+          trades={trades}
+          onSendCommand={handleSendCommand}
+          loadingStates={loadingStates}
         />
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {/* نمایش درصد با علامت + یا - */}
-          {trade.progress_percent}
-          {/* {`${progressValue >= 0 ? '+' : ''}${progressValue.toFixed(1)}%`} */}
-        </Typography>
-      </Box>
-        <Box sx={{ flex: 1, textAlign: 'center' }}>
-          <Chip label={trade.atm_enabled ? "فعال" : "غیرفعال"} color={trade.atm_enabled ? "success" : "default"} size="small" onClick={() => handleSendCommand({ action: 'toggle_atm_trade', ticket: trade.ticket, atm_trade_state: !trade.atm_enabled }, atmKey)} disabled={loadingStates[atmKey]} />
-        </Box>
-        <Box sx={{ flex: 2, display: 'flex', justifyContent: 'center', gap: 1 }}>
-          {trade.is_breakeven ? (
-            <Button variant="contained" size="small" sx={{ bgcolor: '#f59e0b', '&:hover': { bgcolor: '#f97316' } }} onClick={() => handleSendCommand({ action: 'restore_breakeven', ticket: trade.ticket }, restoreBeKey)} disabled={loadingStates[restoreBeKey]}>لغو BE</Button>
-          ) : (
-            <Button variant="contained" size="small" color="info" onClick={() => handleSendCommand({ action: 'breakeven', ticket: trade.ticket }, beKey)} disabled={trade.profit <= 0 || loadingStates[beKey]}>ریسک فری</Button>
-          )}
-          <Button variant="contained" size="small" color="error" onClick={() => handleSendCommand({ action: 'close', ticket: trade.ticket }, closeKey)} disabled={loadingStates[closeKey]}>بستن</Button>
-        </Box>
-      </Box>
-    );
-  };
+      </Container>
+      
+      {/* کامپوننت بهینه شده نوار ابزار پایین */}
+      <ActionBar
+        totalPL={totalPL}
+        hasTrades={hasTrades}
+        hasProfits={hasProfits}
+        hasLosses={hasLosses}
+        onOpenConfirmation={openConfirmation}
+        loadingStates={loadingStates}
+      />
 
-  return (
-    <ThemeProvider theme={theme}>
-      <Toaster position="top-center" toastOptions={{ style: { background: '#334155', color: '#e2e8f0' } }} />
-      <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
-        <AppBar position="static" elevation={0} color="transparent">
-          <Toolbar>
-            {getConnectionIcon()}
-            <Typography variant="h6" sx={{ flexGrow: 1, textAlign: 'center' }}>داشبورد معاملاتی - نماد: <span style={{ fontWeight: 'bold' }}>{symbol}</span></Typography>
-            <Tooltip title="تغییر تم"><IconButton onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')} color="inherit">{themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}</IconButton></Tooltip>
-            <Tooltip title="تنظیمات"><IconButton onClick={() => setSettingsOpen(true)} color="inherit"><SettingsIcon /></IconButton></Tooltip>
-          </Toolbar>
-        </AppBar>
-        <Container maxWidth="xl" sx={{ flexGrow: 1, py: 2, display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-            <TradeListHeader />
-            {hasTrades ? (
-              <Box sx={{ overflowY: 'auto', p: 1 }}>
-                {trades.map((trade) => <TradeRow key={trade.ticket} trade={trade} />)}
-              </Box>
-            ) : (
-              <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
-                <InfoOutlined sx={{ fontSize: 60, mb: 2 }} />
-                <Typography variant="h6">هیچ معامله‌ی بازی وجود ندارد</Typography>
-              </Box>
-            )}
-          </Box>
-        </Container>
-        <AppBar position="static" elevation={0} color="transparent" sx={{ top: 'auto', bottom: 0 }}>
-          <Toolbar>
-            <Typography variant="h6" sx={{ color: totalPL >= 0 ? 'success.main' : 'error.main' }}>سود/زیان کل: {totalPL.toFixed(2)} $</Typography>
-            <Box sx={{ flexGrow: 1 }} />
-            <Button variant="contained" color="primary" sx={{ ml: 1 }} onClick={() => openConfirmation('بستن همه', 'آیا از بستن تمام معاملات مطمئن هستید؟', { action: 'close_all' }, 'close_all')} disabled={!hasTrades || loadingStates['close_all']}>{loadingStates['close_all'] ? <CircularProgress size={24} /> : 'بستن همه'}</Button>
-            <Button variant="contained" color="success" sx={{ ml: 1 }} onClick={() => openConfirmation('بستن سودها', 'آیا از بستن تمام معاملات سودده مطمئن هستید؟', { action: 'close_profits' }, 'close_profits')} disabled={!hasProfits || loadingStates['close_profits']}>{loadingStates['close_profits'] ? <CircularProgress size={24} /> : 'بستن سودها'}</Button>
-            <Button variant="contained" color="error" onClick={() => openConfirmation('بستن ضررها', 'آیا از بستن تمام معاملات ضررده مطمئن هستید؟', { action: 'close_losses' }, 'close_losses')} disabled={!hasLosses || loadingStates['close_losses']}>{loadingStates['close_losses'] ? <CircularProgress size={24} /> : 'بستن ضررها'}</Button>
-          </Toolbar>
-        </AppBar>
-        <SettingsDialog open={isSettingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={(newSettings) => handleSendCommand({ action: 'update_settings', settings: newSettings }, 'save_settings')} />
-        <ConfirmationDialog {...confirmState} onClose={() => setConfirmState({ ...confirmState, isOpen: false })} />
-      </Box>
-    </ThemeProvider>
-  );
+      {/* دیالوگ‌ها که فقط در صورت نیاز رندر می‌شوند */}
+      <SettingsDialog 
+          open={isSettingsOpen} 
+          onClose={() => setSettingsOpen(false)} 
+          settings={settings} 
+          onSave={(newSettings) => handleSendCommand({ action: 'update_settings', settings: newSettings }, 'save_settings')} 
+      />
+      <ConfirmationDialog 
+          {...confirmState} 
+          onClose={() => setConfirmState({ ...confirmState, isOpen: false })} 
+      />
+    </Box>
+  </ThemeProvider>
+);
 }
 
 // --- HELPER COMPONENTS ---
