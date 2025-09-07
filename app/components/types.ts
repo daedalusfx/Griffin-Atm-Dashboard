@@ -9,6 +9,7 @@ export interface Trade {
     atm_enabled: boolean;
     is_breakeven: boolean;
     progress_percent: number;
+    is_breakeven_possible: boolean; 
   }
   
   export interface CommandPayload {

@@ -46,7 +46,7 @@ export const TradeRow = memo(({ trade, onSendCommand, loadingStates }: TradeRowP
             {trade.is_breakeven ? (
                 <Button variant="contained" size="small" sx={{ bgcolor: '#f59e0b', '&:hover': { bgcolor: '#f97316' } }} onClick={handleRestoreBreakeven} disabled={loadingStates[restoreBeKey]}>لغو BE</Button>
             ) : (
-                <Button variant="contained" size="small" color="info" onClick={handleBreakeven} disabled={trade.profit <= 0 || loadingStates[beKey]}>ریسک فری</Button>
+            <Button variant="contained" size="small" color="info" onClick={handleBreakeven} disabled={!trade.is_breakeven_possible || loadingStates[beKey]}>ریسک فری</Button>
             )}
             <Button variant="contained" size="small" color="error" onClick={handleClose} disabled={loadingStates[closeKey]}>بستن</Button>
         </Box>
