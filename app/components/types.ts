@@ -10,6 +10,7 @@ export interface Trade {
     is_breakeven: boolean;
     progress_percent: number;
     is_breakeven_possible: boolean; 
+    was_rule_applied: boolean;
   }
   
   export interface CommandPayload {

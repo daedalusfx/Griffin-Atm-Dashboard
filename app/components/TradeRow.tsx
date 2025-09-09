@@ -1,7 +1,8 @@
 // src/renderer/components/TradeRow.tsx (فایل جدید)
 
 import React, { memo } from 'react';
-import { Box, Typography, Chip, Button, LinearProgress, alpha, useTheme } from '@mui/material';
+import { Replay as ReplayIcon } from '@mui/icons-material';
+import { Box, Typography, Chip, Button, LinearProgress, alpha, useTheme, Tooltip, IconButton } from '@mui/material';
 import { Trade, CommandPayload } from './types'; 
 
 
@@ -14,10 +15,10 @@ interface TradeRowProps {
 // کامپوننت با React.memo بهینه شده است
 export const TradeRow = memo(({ trade, onSendCommand, loadingStates }: TradeRowProps) => {
   const theme = useTheme();
-  console.log(`Rendering TradeRow: ${trade.ticket}`); // این برای دیباگ است، بعدا حذف کنید
 
   const atmKey = `atm_${trade.ticket}`;
   const beKey = `be_${trade.ticket}`;
+  const resetKey = `reset_${trade.ticket}`; 
   const restoreBeKey = `restore_be_${trade.ticket}`;
   const closeKey = `close_${trade.ticket}`;
   const progressValue = trade.progress_percent || 0;
@@ -27,6 +28,40 @@ export const TradeRow = memo(({ trade, onSendCommand, loadingStates }: TradeRowP
   const handleRestoreBreakeven = () => onSendCommand({ action: 'restore_breakeven', ticket: trade.ticket }, restoreBeKey);
   const handleBreakeven = () => onSendCommand({ action: 'breakeven', ticket: trade.ticket }, beKey);
   const handleClose = () => onSendCommand({ action: 'close', ticket: trade.ticket }, closeKey);
+  const handleResetAtm = () => onSendCommand({ action: 'reset_atm', ticket: trade.ticket }, resetKey);
+
+    const renderAtmSection = () => {
+      // اگر قانون اجرا شده باشد
+      if (trade.was_rule_applied) {
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Chip label="Passed" color="warning" size="small" />
+            <Tooltip title="Re-arm ATM">
+              <span> {/* Tooltip به دکمه غیرفعال نیاز به یک wrapper دارد */}
+                <IconButton 
+                  size="small" 
+                  onClick={handleResetAtm} 
+                  disabled={loadingStates[resetKey]}
+                  sx={{ ml: 0.5 }}
+                >
+                  <ReplayIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
+        );
+      }
+      
+      return (
+        <Chip 
+          label={trade.atm_enabled ? "Active" : "Inactive"} 
+          color={trade.atm_enabled ? "success" : "default"} 
+          size="small" 
+          onClick={handleToggleAtm} 
+          disabled={loadingStates[atmKey]} 
+        />
+      );
+    };
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 2, py: 1, bgcolor: alpha(trade.profit > 0 ? theme.palette.success.main : trade.profit < 0 ? theme.palette.error.main : theme.palette.background.paper, 0.15), borderRadius: 2, mb: 1 }}>
@@ -40,7 +75,9 @@ export const TradeRow = memo(({ trade, onSendCommand, loadingStates }: TradeRowP
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{`${progressValue.toFixed(1)}%`}</Typography>
         </Box>
         <Box sx={{ flex: 1, textAlign: 'center' }}>
-            <Chip label={trade.atm_enabled ? "فعال" : "غیرفعال"} color={trade.atm_enabled ? "success" : "default"} size="small" onClick={handleToggleAtm} disabled={loadingStates[atmKey]} />
+            {/* <Chip label={trade.atm_enabled ? "فعال" : "غیرفعال"} color={trade.atm_enabled ? "success" : "default"} size="small" onClick={handleToggleAtm} disabled={loadingStates[atmKey]} /> */}
+            {renderAtmSection()}
+
         </Box>
         <Box sx={{ flex: 2, display: 'flex', justifyContent: 'center', gap: 1 }}>
             {trade.is_breakeven ? (
