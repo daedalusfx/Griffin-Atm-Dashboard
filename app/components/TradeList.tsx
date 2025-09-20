@@ -28,7 +28,7 @@ const TradeListHeader = memo(() => (
 ));
 
 export const TradeList = memo(({ trades, onSendCommand, loadingStates }: TradeListProps) => {
-    console.log("Rendering TradeList..."); // برای دیباگ
+    // console.log("Rendering TradeList..."); // برای دیباگ
     const hasTrades = trades.length > 0;
 
     return (

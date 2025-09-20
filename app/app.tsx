@@ -86,16 +86,16 @@ export function Dashboard() {
     function connect() {
       // جلوگیری از ایجاد اتصال‌های متعدد اگر یکی از قبل وجود دارد
       if (ws && ws.readyState !== WebSocket.CLOSED) {
-        console.log("WebSocket is already connecting or open.");
+        // console.log("WebSocket is already connecting or open.");
         return;
       }
       
-      console.log("Attempting to connect to WebSocket...");
+      // console.log("Attempting to connect to WebSocket...");
       setConnectionStatus(ConnectionStatus.Connecting);
       const socket = new WebSocket('ws://localhost:5000');
       
       socket.onopen = () => {
-        console.log('WebSocket connection established.');
+        // console.log('WebSocket connection established.');
         setConnectionStatus(ConnectionStatus.Connected);
         setWs(socket);
         // اگر تایمر اتصال مجددی در حال اجرا بود، آن را پاک کن
@@ -106,7 +106,7 @@ export function Dashboard() {
       };
       
       socket.onclose = () => {
-        console.log("WebSocket closed. Attempting to reconnect in 3 seconds...");
+        // console.log("WebSocket closed. Attempting to reconnect in 3 seconds...");
         setWs(null);
         setConnectionStatus(ConnectionStatus.Disconnected);
         // فقط در صورتی یک تایمر جدید بساز که از قبل وجود نداشته باشد
@@ -124,27 +124,93 @@ export function Dashboard() {
         socket.close();
       };
   
-      socket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          switch (message.type) {
-            case 'trade_data':
-              setTrades(message.data.trades || []);
-              setTotalPL(message.data.total_pl || 0);
-              setSymbol(message.data.symbol || 'N/A');
-              break;
-            case 'settings':
-              setSettings(message.data || {});
-              break;
-            case 'feedback':
-              const feedback = message.data;
-              if (feedback.status === 'success') toast.success(feedback.message);
-              else if (feedback.status === 'error') toast.error(feedback.message);
-              else toast(feedback.message, { icon: 'ℹ️' });
-              break;
-          }
-        } catch (e) { console.error("Error parsing message:", e); }
-      };
+socket.onmessage = (event) => {
+  try {
+    const message = JSON.parse(event.data);
+    switch (message.type) {
+      case 'trade_data':
+        setTrades(message.data.trades || []);
+        setTotalPL(message.data.total_pl || 0);
+        setSymbol(message.data.symbol || 'N/A');
+        // settings دیگر همراه trade_data نمی‌آید
+        if (message.data.settings) {
+           setSettings(message.data.settings || {});
+        }
+        break;
+
+      case 'feedback':
+        const feedback = message.data;
+        if (feedback.status === 'success') toast.success(feedback.message);
+        else if (feedback.status === 'error') toast.error(feedback.message);
+        else toast(feedback.message, { icon: 'ℹ️' });
+        break;
+
+      // +++ بخش جدید برای دریافت سیگنال‌های کپی ترید +++
+      case 'trade_signal':
+        const signal = message.data;
+        const ticket = signal.provider_ticket;
+        let toastMessage = `Signal: ${signal.action} for ticket #${ticket}`;
+        console.log(toastMessage);
+        
+        
+        // می‌توانید پیام‌های بهتری بسازید
+        switch(signal.action) {
+            case 'OPEN_POSITION':
+                toastMessage = `🟢 New position #${ticket} opened on ${signal.symbol}`;
+        console.log(toastMessage);
+
+                break;
+            case 'CLOSE_POSITION':
+                toastMessage = `🔴 Position #${ticket} closed.`;
+                console.log(toastMessage);
+
+                break;
+            case 'MODIFY_POSITION':
+                toastMessage = `🟠 Position #${ticket} modified.`;
+                console.log(toastMessage);
+
+                break;
+            case 'PLACE_PENDING':
+                toastMessage = `🔵 Pending order #${ticket} placed for ${signal.symbol}`;
+                console.log(toastMessage);
+
+                break;
+            case 'MODIFY_PENDING':
+                toastMessage = `🟡 Pending order #${ticket} modified.`;
+                console.log(toastMessage);
+
+                break;
+            case 'CANCEL_PENDING':
+                toastMessage = `⚪️ Pending order #${ticket} cancelled.`;
+                console.log(toastMessage);
+          
+                break;
+        }
+
+        toast.custom((t) => (
+          <div
+            style={{
+              padding: '12px 20px',
+              background: '#2d3748', // gray-800
+              color: '#e2e8f0',      // slate-200
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+            }}
+          >
+            {toastMessage}
+          </div>
+        ));
+        break;
+
+      // این کیس را برای دریافت تنظیمات جداگانه اضافه کنید (اگر قبلاً نبوده)
+      case 'settings':
+         setSettings(message.data || {});
+         break;
+    }
+  } catch (e) { console.error("Error parsing message:", e); }
+};
+
+
     }
 
     // اولین تلاش برای اتصال

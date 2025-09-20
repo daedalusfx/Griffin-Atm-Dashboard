@@ -13,7 +13,7 @@ interface ActionBarProps {
 }
 
 export const ActionBar = memo(({ totalPL, hasTrades, hasProfits, hasLosses, onOpenConfirmation, loadingStates }: ActionBarProps) => {
-    console.log("Rendering ActionBar..."); // برای دیباگ
+    //console.log("Rendering ActionBar..."); // برای دیباگ
     return (
         <AppBar position="static" elevation={0} color="transparent" sx={{ top: 'auto', bottom: 0 }}>
             <Toolbar>

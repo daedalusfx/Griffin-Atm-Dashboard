@@ -13,7 +13,7 @@ interface DashboardHeaderProps {
 }
 
 export const DashboardHeader = memo(({ symbol, connectionIcon, themeMode, onToggleTheme, onOpenSettings }: DashboardHeaderProps) => {
-    console.log("Rendering Header..."); // برای دیباگ
+    // console.log("Rendering Header..."); // برای دیباگ
     return (
         <AppBar position="static" elevation={0} color="transparent">
             <Toolbar>
