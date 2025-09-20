@@ -1,13 +1,18 @@
-import { BrowserWindow, shell, app } from 'electron'
-import { join } from 'path'
-import appIcon from '@/resources/build/icon.png?asset'
-import { registerResourcesProtocol } from './protocols'
-import { registerWindowHandlers } from '@/lib/conveyor/handlers/window-handler'
 import { registerAppHandlers } from '@/lib/conveyor/handlers/app-handler'
+import { registerServerHandlers } from '@/lib/conveyor/handlers/server-handler'
+import { registerWindowHandlers } from '@/lib/conveyor/handlers/window-handler'
+import appIcon from '@/resources/build/icon.png?asset'
+import { app, BrowserWindow, shell } from 'electron'
+import { join } from 'path'
+import { registerResourcesProtocol } from './protocols'
+import { stopServer } from './server'
+
 
 export function createAppWindow(): void {
   // Register custom protocol for resources
-  registerResourcesProtocol()
+  registerResourcesProtocol();
+  registerServerHandlers(); 
+
 
   // Create the main window.
   const mainWindow = new BrowserWindow({
@@ -19,8 +24,8 @@ export function createAppWindow(): void {
     frame: true,
     titleBarStyle: 'hiddenInset',
     title: 'Electron React App',
-    maximizable: false,
-    resizable: false,
+    maximizable: true,
+    resizable: true,
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       sandbox: false,
@@ -39,6 +44,10 @@ export function createAppWindow(): void {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  app.on('before-quit', () => {
+    stopServer();
+});
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
