@@ -1,18 +1,19 @@
 // src/renderer/components/DashboardHeader.tsx (فایل جدید)
 
+import { Brightness4, Brightness7 } from '@mui/icons-material';
+import { AppBar, Button, ButtonGroup, Toolbar, Typography } from '@mui/material';
 import React, { memo } from 'react';
-import { AppBar, Toolbar, Typography, Tooltip, IconButton } from '@mui/material';
-import { Brightness4, Brightness7, Settings as SettingsIcon } from '@mui/icons-material';
 
 interface DashboardHeaderProps {
-  symbol: string;
-  connectionIcon: React.ReactNode;
-  themeMode: 'light' | 'dark';
-  onToggleTheme: () => void;
-  onOpenSettings: () => void;
+    symbol: string;
+    connectionIcon: React.ReactNode;
+    themeMode: 'light' | 'dark';
+    onToggleTheme: () => void;
+    onOpenSettings: () => void;
+    onOpenMainSettings: () => void;
 }
 
-export const DashboardHeader = memo(({ symbol, connectionIcon, themeMode, onToggleTheme, onOpenSettings }: DashboardHeaderProps) => {
+export const DashboardHeader = memo(({ symbol, connectionIcon, themeMode, onToggleTheme, onOpenSettings, onOpenMainSettings }: DashboardHeaderProps) => {
     // console.log("Rendering Header..."); // برای دیباگ
     return (
         <AppBar position="static" elevation={0} color="transparent">
@@ -21,16 +22,17 @@ export const DashboardHeader = memo(({ symbol, connectionIcon, themeMode, onTogg
                 <Typography variant="h6" sx={{ flexGrow: 1, textAlign: 'center' }}>
                     داشبورد معاملاتی - نماد: <span style={{ fontWeight: 'bold' }}>{symbol}</span>
                 </Typography>
-                <Tooltip title="تغییر تم">
-                    <IconButton onClick={onToggleTheme} color="inherit">
-                        {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="تنظیمات">
-                    <IconButton onClick={onOpenSettings} color="inherit">
-                        <SettingsIcon />
-                    </IconButton>
-                </Tooltip>
+                <ButtonGroup variant="contained" color='inherit' aria-label="Basic button group">
+                    <Button onClick={onToggleTheme} color="inherit" variant='outlined' >
+                    {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                    </Button>
+                    <Button onClick={onOpenSettings} color="inherit" variant='outlined'>
+                    ATM Settings
+                    </Button>
+                    <Button onClick={onOpenMainSettings} color="inherit" variant='outlined' >
+                    Risk Settings
+                    </Button>
+                </ButtonGroup>
             </Toolbar>
         </AppBar>
     );

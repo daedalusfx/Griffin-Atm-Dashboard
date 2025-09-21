@@ -2,32 +2,33 @@
 // FILE: src/renderer/App.tsx
 // توضیحات: نسخه نهایی با چرخه بازخورد واقعی و دکمه هوشمند ریسک-فری
 // =================================================================
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  createTheme,
-  ThemeProvider,
-  CssBaseline,
-  Box,
-  Typography,
-  Button,
-  Tooltip,
-  Container,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Switch,
-  FormControlLabel, keyframes
-} from '@mui/material';
 import {
   Wifi
 } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  Container,
+  createTheme,
+  CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel, keyframes,
+  Switch,
+  TextField,
+  ThemeProvider,
+  Tooltip,
+  Typography
+} from '@mui/material';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { DashboardHeader } from './components/DashboardHeader';
-import { TradeList } from './components/TradeList';
 import { ActionBar } from './components/ActionBar';
-import { Settings, Trade, CommandPayload } from './components/types';
+import { DashboardHeader } from './components/DashboardHeader';
+import { MainSettings, MainSettingsDialog } from './components/MainSettingsDialog';
+import { TradeList } from './components/TradeList';
+import { CommandPayload, Settings, Trade } from './components/types';
 
 // --- ENUMS & INTERFACES ---
 enum ConnectionStatus {
@@ -58,6 +59,9 @@ export function Dashboard() {
   const [confirmState, setConfirmState] = useState<{ isOpen: boolean; title: string; description: string; onConfirm: (() => void) | null; }>({ isOpen: false, title: '', description: '', onConfirm: null });
   const [ws, setWs] = useState<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [mainSettings, setMainSettings] = useState<MainSettings>({});
+  const [isMainSettingsOpen, setMainSettingsOpen] = useState<boolean>(false);
+
 
 
   const theme = useMemo(() => createTheme({
@@ -136,6 +140,9 @@ socket.onmessage = (event) => {
         if (message.data.settings) {
            setSettings(message.data.settings || {});
         }
+        if (message.data.main_settings) {
+          setMainSettings(message.data.main_settings || {});
+       }
         break;
 
       case 'feedback':
@@ -307,6 +314,7 @@ return (
         themeMode={themeMode}
         onToggleTheme={handleToggleTheme}
         onOpenSettings={handleOpenSettings}
+        onOpenMainSettings={() => setMainSettingsOpen(true)}
       />
       
       <Container maxWidth="xl" sx={{ flexGrow: 1, py: 2, display: 'flex', flexDirection: 'column' }}>
@@ -335,6 +343,13 @@ return (
           settings={settings} 
           onSave={(newSettings) => handleSendCommand({ action: 'update_settings', settings: newSettings }, 'save_settings')} 
       />
+
+       <MainSettingsDialog
+          open={isMainSettingsOpen}
+          onClose={() => setMainSettingsOpen(false)}
+          settings={mainSettings}
+          onSave={(newSettings) => handleSendCommand({ action: 'update_main_settings', ...newSettings }, 'save_main_settings')}
+      />
       <ConfirmationDialog 
           {...confirmState} 
           onClose={() => setConfirmState({ ...confirmState, isOpen: false })} 
@@ -362,7 +377,14 @@ function ConfirmationDialog({ isOpen, title, description, onConfirm, onClose }: 
 interface SettingsDialogProps { open: boolean; onClose: () => void; settings: Settings; onSave: (settings: Settings) => void; }
 function SettingsDialog({ open, onClose, settings, onSave }: SettingsDialogProps) {
     const [localSettings, setLocalSettings] = useState<Settings>(settings);
-    useEffect(() => { setLocalSettings(settings); }, [settings]);
+    useEffect(() => {
+      // اگر دیالوگ باز شد، state محلی را با آخرین تنظیمات دریافت شده از اکسپرت همگام کن
+      if (open) {
+        setLocalSettings(settings);
+      }
+    }, [open]); // <-- به `open` وابسته است، نه `settings`
+
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
         setLocalSettings(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : parseFloat(value) || 0 }));
