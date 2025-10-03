@@ -13,40 +13,43 @@ import {
   Typography,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
+import { MainSettingsTypeInterface } from './types';
 
-// تعریف یک اینترفیس برای نوع داده تنظیمات اصلی
-export interface MainSettings {
-  riskMode?: 'PERCENT' | 'MONEY';
-  riskPercent?: number;
-  tpMode?: 'RR_RATIO' | 'MANUAL';
-  tpRRValue?: number;
-}
 
 interface MainSettingsDialogProps {
   open: boolean;
   onClose: () => void;
-  settings: MainSettings;
-  onSave: (settings: MainSettings) => void;
+  settings: MainSettingsTypeInterface;
+  onSave: (settings: MainSettingsTypeInterface) => void;
 }
 
 export function MainSettingsDialog({ open, onClose, settings, onSave }: MainSettingsDialogProps) {
-  const [localSettings, setLocalSettings] = useState<MainSettings>(settings);
+  const [localSettings, setLocalSettings] = useState<MainSettingsTypeInterface>(settings);
 
-    // این effect فقط زمانی اجرا می‌شود که دیالوگ از حالت بسته به باز تغییر کند
-    useEffect(() => {
-      // اگر دیالوگ باز شد، state محلی را با آخرین تنظیمات دریافت شده از اکسپرت همگام کن
-      if (open) {
-        setLocalSettings(settings);
+  useEffect(() => {
+    if (open) {
+      // مقادیر پیش‌فرض را برای جلوگیری از خطا تنظیم می‌کنیم
+      setLocalSettings({
+        ...settings,
+        riskValues: settings.riskValues || { market: 1.0, pending: 1.0, stairway: 1.0 }
+      });
+    }
+  }, [open]);
+
+  const handleRiskValueChange = (panel: 'market' | 'pending' | 'stairway') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) || 0;
+    setLocalSettings(prev => ({
+      ...prev,
+      riskValues: {
+        ...(prev.riskValues!),
+        [panel]: value,
       }
-    }, [open]); // <-- به `open` وابسته است، نه `settings`
+    }));
+  };
 
-
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    // تبدیل مقادیر عددی به عدد و بقیه به صورت رشته
-    const processedValue = type === 'number' ? parseFloat(value) || 0 : value;
-    setLocalSettings(prev => ({ ...prev, [name]: processedValue }));
+  const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setLocalSettings(prev => ({ ...prev, [name]: value }));
   };
   
   const handleSave = () => {
@@ -55,10 +58,6 @@ export function MainSettingsDialog({ open, onClose, settings, onSave }: MainSett
   };
 
   if (!open) return null;
-
-
-   
-
     
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 2 } }}>
@@ -69,23 +68,32 @@ export function MainSettingsDialog({ open, onClose, settings, onSave }: MainSett
           {/* بخش مدیریت ریسک */}
           <Box>
             <Typography variant="h6" gutterBottom>مدیریت ریسک</Typography>
-            <RadioGroup
-              row
-              name="riskMode"
-              value={localSettings.riskMode || 'PERCENT'}
-              onChange={handleChange}
-            >
+            <RadioGroup row name="riskMode" value={localSettings.riskMode || 'PERCENT'} onChange={handleGeneralChange}>
               <FormControlLabel value="PERCENT" control={<Radio />} label="درصدی از بالانس" />
               <FormControlLabel value="MONEY" control={<Radio />} label="مبلغ ثابت" />
             </RadioGroup>
+            
+            {/* +++ سه فیلد ورودی مجزا برای هر پنل +++ */}
             <TextField
-              name="riskPercent"
-              label={localSettings.riskMode === 'PERCENT' ? "درصد ریسک (مثلا 1.5)" : "مبلغ ریسک (مثلا 100$)"}
-              type="number"
-              fullWidth
-              margin="normal"
-              value={localSettings.riskPercent || ''}
-              onChange={handleChange}
+              label={`ریسک Market (${localSettings.riskMode === 'PERCENT' ? '%' : '$'})`}
+              type="number" fullWidth margin="normal"
+              value={localSettings.riskValues?.market ?? ''}
+              onChange={handleRiskValueChange('market')}
+              inputProps={{ step: "0.1" }}
+            />
+            <TextField
+              label={`ریسک Pending (${localSettings.riskMode === 'PERCENT' ? '%' : '$'})`}
+              type="number" fullWidth margin="normal"
+              value={localSettings.riskValues?.pending ?? ''}
+              onChange={handleRiskValueChange('pending')}
+              inputProps={{ step: "0.1" }}
+            />
+            <TextField
+              label={`ریسک Stairway (${localSettings.riskMode === 'PERCENT' ? '%' : '$'})`}
+              type="number" fullWidth margin="normal"
+              value={localSettings.riskValues?.stairway ?? ''}
+              onChange={handleRiskValueChange('stairway')}
+              inputProps={{ step: "0.1" }}
             />
           </Box>
           
@@ -94,25 +102,17 @@ export function MainSettingsDialog({ open, onClose, settings, onSave }: MainSett
           {/* بخش مدیریت حد سود */}
           <Box>
             <Typography variant="h6" gutterBottom>مدیریت حد سود</Typography>
-            <RadioGroup
-              row
-              name="tpMode"
-              value={localSettings.tpMode || 'RR_RATIO'}
-              onChange={handleChange}
-            >
+            <RadioGroup row name="tpMode" value={localSettings.tpMode || 'RR_RATIO'} onChange={handleGeneralChange}>
               <FormControlLabel value="RR_RATIO" control={<Radio />} label="نسبت ریسک به ریوارد" />
               <FormControlLabel value="MANUAL" control={<Radio />} label="دستی" />
             </RadioGroup>
             <TextField
-              name="tpRRValue"
-              label="مقدار نسبت R:R (مثلا 2.0)"
-              type="number"
-              fullWidth
-              margin="normal"
+              name="tpRRValue" label="مقدار نسبت R:R (مثلا 2.0)"
+              type="number" fullWidth margin="normal"
               value={localSettings.tpRRValue || ''}
-              onChange={handleChange}
-              // اگر حالت دستی بود، این فیلد را غیرفعال کن
+              onChange={(e) => setLocalSettings(prev => ({...prev, tpRRValue: parseFloat(e.target.value) || 0}))}
               disabled={localSettings.tpMode !== 'RR_RATIO'}
+              inputProps={{ step: "0.1" }}
             />
           </Box>
         </Box>

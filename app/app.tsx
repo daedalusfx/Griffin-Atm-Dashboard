@@ -26,9 +26,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast, { Toaster } from 'react-hot-toast';
 import { ActionBar } from './components/ActionBar';
 import { DashboardHeader } from './components/DashboardHeader';
-import { MainSettings, MainSettingsDialog } from './components/MainSettingsDialog';
+import { MainSettingsDialog } from './components/MainSettingsDialog';
 import { TradeList } from './components/TradeList';
-import { CommandPayload, Settings, Trade } from './components/types';
+import { CommandPayload, MainSettingsTypeInterface, Settings, Trade } from './components/types';
 
 // --- ENUMS & INTERFACES ---
 enum ConnectionStatus {
@@ -59,7 +59,7 @@ export function Dashboard() {
   const [confirmState, setConfirmState] = useState<{ isOpen: boolean; title: string; description: string; onConfirm: (() => void) | null; }>({ isOpen: false, title: '', description: '', onConfirm: null });
   const [ws, setWs] = useState<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [mainSettings, setMainSettings] = useState<MainSettings>({});
+  const [mainSettings, setMainSettings] = useState<MainSettingsTypeInterface>({});
   const [isMainSettingsOpen, setMainSettingsOpen] = useState<boolean>(false);
 
 
@@ -344,12 +344,24 @@ return (
           onSave={(newSettings) => handleSendCommand({ action: 'update_settings', settings: newSettings }, 'save_settings')} 
       />
 
-       <MainSettingsDialog
-          open={isMainSettingsOpen}
-          onClose={() => setMainSettingsOpen(false)}
-          settings={mainSettings}
-          onSave={(newSettings) => handleSendCommand({ action: 'update_main_settings', ...newSettings }, 'save_main_settings')}
-      />
+
+<MainSettingsDialog
+    open={isMainSettingsOpen}
+    onClose={() => setMainSettingsOpen(false)}
+    settings={mainSettings}
+    onSave={(newSettings) => {
+        const payload = {
+            action: 'update_main_settings',
+            riskMode: newSettings.riskMode,
+            risk_market: newSettings.riskValues?.market,
+            risk_pending: newSettings.riskValues?.pending,
+            risk_stairway: newSettings.riskValues?.stairway,
+            tpMode: newSettings.tpMode,
+            tpRRValue: newSettings.tpRRValue
+        };
+        handleSendCommand(payload, 'save_main_settings');
+    }}
+/>
       <ConfirmationDialog 
           {...confirmState} 
           onClose={() => setConfirmState({ ...confirmState, isOpen: false })} 

@@ -23,3 +23,14 @@ export interface Trade {
     moveToBE?: boolean;
     closePercent?: number;
   }
+
+  export interface MainSettingsTypeInterface {
+    riskMode?: 'PERCENT' | 'MONEY';
+    riskValues?: {
+      market: number;
+      pending: number;
+      stairway: number;
+    };
+    tpMode?: 'RR_RATIO' | 'MANUAL';
+    tpRRValue?: number;
+  }
