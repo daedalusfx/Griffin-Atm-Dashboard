@@ -23,7 +23,7 @@ export function createAppWindow(): void {
     icon: appIcon,
     frame: true,
     titleBarStyle: 'hiddenInset',
-    title: 'Electron React App',
+    title: 'Griffin Atm Dashboard',
     maximizable: true,
     resizable: true,
     webPreferences: {
@@ -32,6 +32,7 @@ export function createAppWindow(): void {
     },
   })
 
+    mainWindow.setMenu(null)
   // Register IPC events for the main window.
   registerWindowHandlers(mainWindow)
   registerAppHandlers(app)
