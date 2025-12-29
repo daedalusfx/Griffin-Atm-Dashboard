@@ -1,4 +1,3 @@
-// src/renderer/types.ts
 
 export interface Trade {
     ticket: number;
@@ -22,6 +21,10 @@ export interface Trade {
     triggerPercent?: number;
     moveToBE?: boolean;
     closePercent?: number;
+    
+    // +++ فیلدهای  تریلینگ استاپ +++
+    trailingEnabled?: boolean;
+    trailingAtrMultiplier?: number;
   }
 
   export interface MainSettingsTypeInterface {
