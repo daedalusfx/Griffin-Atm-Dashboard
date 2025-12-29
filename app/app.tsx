@@ -477,6 +477,19 @@ function SettingsDialog({ open, onClose, settings, onSave }: SettingsDialogProps
                             onChange={handleChange} 
                             helperText="فاصله حد ضرر = ATR (14) × این ضریب"
                         />
+
+                        <TextField 
+                          name="trailingStepPercent" 
+                          label="گام جابجایی (Trailing Step % ATR)" 
+                          type="number" 
+                          fullWidth 
+                          margin="normal"
+                          size="small"
+                          disabled={!localSettings.trailingEnabled}
+                          value={localSettings.trailingStepPercent || ''} 
+                          onChange={handleChange} 
+                          helperText="حداقل جابجایی قیمت (بر اساس % از ATR) برای آپدیت کردن حد ضرر."
+                      />
                     </Box>
 
                 </Box>

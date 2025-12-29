@@ -25,6 +25,7 @@ export interface Trade {
     // +++ فیلدهای  تریلینگ استاپ +++
     trailingEnabled?: boolean;
     trailingAtrMultiplier?: number;
+    trailingStepPercent?: number; 
   }
 
   export interface MainSettingsTypeInterface {
