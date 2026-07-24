@@ -8,10 +8,10 @@ import {
   Switch,
   DialogActions,
   Button,
+  Box,
 } from '@mui/material'
 import { CommandPayload, MainSettingsTypeInterface, Settings, Trade } from './types';
 
-import { Box } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface SettingsDialogProps {
