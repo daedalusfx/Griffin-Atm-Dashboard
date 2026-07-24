@@ -1,7 +1,8 @@
 // src/renderer/components/TradeList.tsx
-import React, { memo } from 'react';
+import React, { memo, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { TradeRow } from './TradeRow';
 import { useDashboardStore } from '../store/useDashboardStore';
 
@@ -21,15 +22,51 @@ const TradeListHeader = memo(() => (
 export const TradeList = memo(() => {
   const trades = useDashboardStore((state) => state.trades);
   const hasTrades = trades.length > 0;
+  
+  // رفرنس برای کانتینری که اسکرول می‌خوره
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  // تنظیمات مجازی‌ساز
+  const rowVirtualizer = useVirtualizer({
+    count: trades.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56, // ارتفاع تقریبی هر TradeRow به پیکسل (اگه ردیف‌هات بلندترن اینو بیشتر کن)
+    overscan: 5, // چند ردیف قبل و بعد از دید کاربر رندر بشن تا اسکرول نرم بمونه
+  });
 
   return (
-    <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <TradeListHeader />
+      
       {hasTrades ? (
-        <Box sx={{ overflowY: 'auto', p: 1 }}>
-          {trades.map((trade) => (
-            <TradeRow key={trade.ticket} trade={trade} />
-          ))}
+        // این باکس باید overflow-y: auto داشته باشه و رفرنسی که ساختیم بهش وصل بشه
+        <Box ref={parentRef} sx={{ flexGrow: 1, overflowY: 'auto', p: 1 }}>
+          <Box
+            sx={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const trade = trades[virtualRow.index];
+              return (
+                <Box
+                  key={trade.ticket}
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <TradeRow trade={trade} />
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
       ) : (
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
