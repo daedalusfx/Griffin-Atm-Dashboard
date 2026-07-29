@@ -33,6 +33,7 @@ export function createAppWindow(): void {
   })
 
     mainWindow.setMenu(null)
+    mainWindow.webContents.openDevTools();
   // Register IPC events for the main window.
   registerWindowHandlers(mainWindow)
   registerAppHandlers(app)

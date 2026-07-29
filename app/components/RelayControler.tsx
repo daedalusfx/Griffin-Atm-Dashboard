@@ -1,72 +1,45 @@
-import { PowerSettingsNew } from '@mui/icons-material';
-import { Box, Button, Typography, CircularProgress } from '@mui/material';
-import { useEffect, useState } from 'react';
-import { useConveyor } from '../hooks/use-conveyor';
+import { useTranslation } from 'react-i18next';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Power } from 'lucide-react';
+import { Button } from '@/app/components/ui/button';
+import { useConveyor } from '@/app/hooks/use-conveyor';
 
-export default function RelayControler() {
-    const serverApi = useConveyor('server');
-    const [serverStatus, setServerStatus] = useState({ isRunning: false, port: null as number | null });
-    const [isLoading, setIsLoading] = useState(false);
+export const RelayController = () => {
+  const { t } = useTranslation();
+  const serverApi = useConveyor('server');
+  const queryClient = useQueryClient();
 
-    useEffect(() => {
-        const fetchStatus = async () => {
-            if (window.conveyor) {
-                const status = await serverApi.getStatus();
-                setServerStatus({
-                    isRunning: status.isRunning,
-                    port: status.port !== undefined ? status.port : null
-                });
-            }
-        };
+  const { data: status, isLoading: isFetching } = useQuery({
+    queryKey: ['serverStatus'],
+    queryFn: async () =>
+      serverApi ? await serverApi.getStatus() : { isRunning: false, port: null },
+    refetchInterval: 3000,
+  });
 
-        // واکشی اولیه
-        fetchStatus();
+  const toggleMutation = useMutation({
+    mutationFn: async (isRunning: boolean) =>
+      isRunning ? serverApi.stop() : serverApi.start(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['serverStatus'] }),
+  });
 
-        // واکشی دوره‌ای هر ۳ ثانیه برای زنده نگه‌داشتن استاتوس
-        const intervalId = setInterval(fetchStatus, 3000);
+  const isRunning = status?.isRunning ?? false;
+  const isLoading = isFetching || toggleMutation.isPending;
 
-        // پاکسازی موقع از بین رفتن کامپوننت
-        return () => clearInterval(intervalId);
-    }, [serverApi]);
-
-    const handleToggleServer = async () => {
-        setIsLoading(true);
-        try {
-            if (serverStatus.isRunning) {
-                await serverApi.stop();
-            } else {
-                await serverApi.start();
-            }
-            // واکشی وضعیت جدید بعد از ارسال فرمان
-            const status = await serverApi.getStatus();
-            setServerStatus({
-                isRunning: status.isRunning,
-                port: status.port !== undefined ? status.port : null
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, border: '1px solid #444', p: 1, borderRadius: 2 }}>
-                    <Typography variant="caption" sx={{ width: 'max-content', margin: '4px' }}>
-                        {serverStatus.isRunning ? `روشن : ${serverStatus.port}` : 'خاموش'}
-                    </Typography>
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        color={serverStatus.isRunning ? 'error' : 'success'}
-                        onClick={handleToggleServer}
-                        startIcon={isLoading ? <CircularProgress size={16} color="inherit" /> : <PowerSettingsNew />}
-                        disabled={isLoading}
-                    >
-                        {serverStatus.isRunning ? 'خاموش کردن' : 'روشن کردن'}
-                    </Button>
-                </Box>
-            </Box>
-        </>
-    );
-}
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">
+        {isRunning ? `${t('port')}: ${status?.port}` : t('server_off')}
+      </span>
+      <Button
+        size="sm"
+        variant={isRunning ? 'destructive' : 'outline'}
+        onClick={() => toggleMutation.mutate(isRunning)}
+        disabled={isLoading}
+        className="h-7 text-xs px-2"
+      >
+        {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
+        {isRunning ? t('stop') : t('start')}
+      </Button>
+    </div>
+  );
+};

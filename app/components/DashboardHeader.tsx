@@ -1,39 +1,72 @@
-// src/renderer/components/DashboardHeader.tsx (فایل جدید)
-
-import { Brightness4, Brightness7 } from '@mui/icons-material';
-import { AppBar, Button, ButtonGroup, Toolbar, Typography } from '@mui/material';
-import React, { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ReadyState } from 'react-use-websocket';
+import { Sun, Moon, Settings2, ShieldAlert, Wifi, WifiOff, Loader2, Globe } from 'lucide-react';
+import { Button } from '@/app/components/ui/button';
+import { RelayController } from '@/app/components/RelayControler';
 
 interface DashboardHeaderProps {
-    symbol: string;
-    connectionIcon: React.ReactNode;
-    themeMode: 'light' | 'dark';
-    onToggleTheme: () => void;
-    onOpenSettings: () => void;
-    onOpenMainSettings: () => void;
+  symbol: string;
+  connectionStatus: number;
+  isDark: boolean;
+  onToggleTheme: () => void;
+  onOpenSettings: () => void;
+  onOpenMainSettings: () => void;
 }
 
-export const DashboardHeader = memo(({ symbol, connectionIcon, themeMode, onToggleTheme, onOpenSettings, onOpenMainSettings }: DashboardHeaderProps) => {
-    // console.log("Rendering Header..."); // برای دیباگ
-    return (
-        <AppBar position="static" elevation={0} color="transparent">
-            <Toolbar>
-                {connectionIcon}
-                <Typography variant="h6" sx={{ flexGrow: 1, textAlign: 'center' }}>
-                    داشبورد معاملاتی - نماد: <span style={{ fontWeight: 'bold' }}>{symbol}</span>
-                </Typography>
-                <ButtonGroup variant="contained" color='inherit' aria-label="Basic button group">
-                    <Button onClick={onToggleTheme} color="inherit" variant='outlined' >
-                    {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                    </Button>
-                    <Button onClick={onOpenSettings} color="inherit" variant='outlined'>
-                    ATM Settings
-                    </Button>
-                    <Button onClick={onOpenMainSettings} color="inherit" variant='outlined' >
-                    Risk Settings
-                    </Button>
-                </ButtonGroup>
-            </Toolbar>
-        </AppBar>
-    );
-});
+export const DashboardHeader = ({
+  symbol,
+  connectionStatus,
+  isDark,
+  onToggleTheme,
+  onOpenSettings,
+  onOpenMainSettings,
+}: DashboardHeaderProps) => {
+  const { t, i18n } = useTranslation();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'fa' ? 'en' : 'fa';
+    i18n.changeLanguage(newLang);
+    document.documentElement.dir = newLang === 'fa' ? 'rtl' : 'ltr';
+    document.documentElement.lang = newLang;
+  };
+
+  const ConnectionIcon = () => {
+    switch (connectionStatus) {
+      case ReadyState.OPEN:
+        return <Wifi className="w-4 h-4 text-green-500" />;
+      case ReadyState.CLOSED:
+        return <WifiOff className="w-4 h-4 text-red-500" />;
+      case ReadyState.CONNECTING:
+        return <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />;
+      default:
+        return <WifiOff className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  return (
+    <header className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex items-center gap-4">
+        <ConnectionIcon />
+        <RelayController />
+        <span className="text-sm font-medium">
+          {t('active_symbol')}: {symbol}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button onClick={toggleLanguage} variant="ghost" size="icon" title="Toggle Language">
+          <Globe className="w-5 h-5" />
+        </Button>
+        <Button onClick={onToggleTheme} variant="ghost" size="icon">
+          {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+        </Button>
+        <Button onClick={onOpenSettings} variant="outline" size="sm" className="hidden sm:flex">
+          <Settings2 className="w-4 h-4 mx-2" /> {t('atm_settings')}
+        </Button>
+        <Button onClick={onOpenMainSettings} variant="outline" size="sm" className="hidden sm:flex">
+          <ShieldAlert className="w-4 h-4 mx-2" /> {t('risk_settings')}
+        </Button>
+      </div>
+    </header>
+  );
+};

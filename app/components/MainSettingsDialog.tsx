@@ -1,126 +1,108 @@
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  TextField,
-  Typography,
-} from '@mui/material';
-import React, { useEffect, useState } from 'react';
-import { MainSettingsTypeInterface } from './types';
-
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { mainSettingsSchema, type MainSettingsType } from '@/app/schemas';
 
 interface MainSettingsDialogProps {
   open: boolean;
   onClose: () => void;
-  settings: MainSettingsTypeInterface;
-  onSave: (settings: MainSettingsTypeInterface) => void;
+  settings: MainSettingsType | null;
+  onSave: (data: MainSettingsType) => void;
 }
 
-export function MainSettingsDialog({ open, onClose, settings, onSave }: MainSettingsDialogProps) {
-  const [localSettings, setLocalSettings] = useState<MainSettingsTypeInterface>(settings);
+export const MainSettingsDialog = ({ open, onClose, settings, onSave }: MainSettingsDialogProps) => {
+  const { t } = useTranslation();
+  const form = useForm<MainSettingsType>({
+    resolver: zodResolver(mainSettingsSchema),
+    defaultValues: {
+      riskMode: 'PERCENT',
+      riskValues: { market: 1.0, pending: 1.0, stairway: 1.0 },
+      tpMode: 'RR_RATIO',
+      tpRRValue: 2.0,
+    },
+  });
 
   useEffect(() => {
-    if (open) {
-      // مقادیر پیش‌فرض را برای جلوگیری از خطا تنظیم می‌کنیم
-      setLocalSettings({
-        ...settings,
-        riskValues: settings.riskValues || { market: 1.0, pending: 1.0, stairway: 1.0 }
-      });
-    }
-  }, [open]);
+    if (open && settings) form.reset(settings);
+  }, [open, settings, form]);
 
-  const handleRiskValueChange = (panel: 'market' | 'pending' | 'stairway') => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value) || 0;
-    setLocalSettings(prev => ({
-      ...prev,
-      riskValues: {
-        ...(prev.riskValues!),
-        [panel]: value,
-      }
-    }));
-  };
+  const isPercent = form.watch('riskMode') === 'PERCENT';
 
-  const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setLocalSettings(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const handleSave = () => {
-    onSave(localSettings);
-    onClose();
-  };
-
-  if (!open) return null;
-    
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 2 } }}>
-      <DialogTitle>تنظیمات اصلی اکسپرت</DialogTitle>
-      <DialogContent>
-        <Box component="form" sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('risk_settings')}</DialogTitle>
+        </DialogHeader>
 
-          {/* بخش مدیریت ریسک */}
-          <Box>
-            <Typography variant="h6" gutterBottom>مدیریت ریسک</Typography>
-            <RadioGroup row name="riskMode" value={localSettings.riskMode || 'PERCENT'} onChange={handleGeneralChange}>
-              <FormControlLabel value="PERCENT" control={<Radio />} label="درصدی از بالانس" />
-              <FormControlLabel value="MONEY" control={<Radio />} label="مبلغ ثابت" />
-            </RadioGroup>
-            
-            {/* +++ سه فیلد ورودی مجزا برای هر پنل +++ */}
-            <TextField
-              label={`ریسک Market (${localSettings.riskMode === 'PERCENT' ? '%' : '$'})`}
-              type="number" fullWidth margin="normal"
-              value={localSettings.riskValues?.market ?? ''}
-              onChange={handleRiskValueChange('market')}
-              inputProps={{ step: "0.1" }}
-            />
-            <TextField
-              label={`ریسک Pending (${localSettings.riskMode === 'PERCENT' ? '%' : '$'})`}
-              type="number" fullWidth margin="normal"
-              value={localSettings.riskValues?.pending ?? ''}
-              onChange={handleRiskValueChange('pending')}
-              inputProps={{ step: "0.1" }}
-            />
-            <TextField
-              label={`ریسک Stairway (${localSettings.riskMode === 'PERCENT' ? '%' : '$'})`}
-              type="number" fullWidth margin="normal"
-              value={localSettings.riskValues?.stairway ?? ''}
-              onChange={handleRiskValueChange('stairway')}
-              inputProps={{ step: "0.1" }}
-            />
-          </Box>
+        <form onSubmit={form.handleSubmit((d) => { onSave(d); onClose(); })} className="space-y-6 mt-4">
+          <h3 className="font-medium text-sm text-primary">{t('risk_mode')}</h3>
           
-          <Divider />
-
-          {/* بخش مدیریت حد سود */}
-          <Box>
-            <Typography variant="h6" gutterBottom>مدیریت حد سود</Typography>
-            <RadioGroup row name="tpMode" value={localSettings.tpMode || 'RR_RATIO'} onChange={handleGeneralChange}>
-              <FormControlLabel value="RR_RATIO" control={<Radio />} label="نسبت ریسک به ریوارد" />
-              <FormControlLabel value="MANUAL" control={<Radio />} label="دستی" />
-            </RadioGroup>
-            <TextField
-              name="tpRRValue" label="مقدار نسبت R:R (مثلا 2.0)"
-              type="number" fullWidth margin="normal"
-              value={localSettings.tpRRValue || ''}
-              onChange={(e) => setLocalSettings(prev => ({...prev, tpRRValue: parseFloat(e.target.value) || 0}))}
-              disabled={localSettings.tpMode !== 'RR_RATIO'}
-              inputProps={{ step: "0.1" }}
-            />
-          </Box>
-        </Box>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="radio" value="PERCENT" {...form.register('riskMode')} className="accent-primary" />
+              {t('percent')}
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="radio" value="MONEY" {...form.register('riskMode')} className="accent-primary" />
+              {t('money')}
+            </label>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="grid gap-1.5">
+              <label className="text-sm text-muted-foreground">
+                {t('market_risk')} ({isPercent ? '%' : '$'})
+              </label>
+              <Input type="number" step="0.1" {...form.register('riskValues.market', { valueAsNumber: true })} />
+            </div>
+            <div className="grid gap-1.5">
+              <label className="text-sm text-muted-foreground">
+                {t('pending_risk')} ({isPercent ? '%' : '$'})
+              </label>
+              <Input type="number" step="0.1" {...form.register('riskValues.pending', { valueAsNumber: true })} />
+            </div>
+            <div className="grid gap-1.5">
+              <label className="text-sm text-muted-foreground">
+                {t('stairway_risk')} ({isPercent ? '%' : '$'})
+              </label>
+              <Input type="number" step="0.1" {...form.register('riskValues.stairway', { valueAsNumber: true })} />
+            </div>
+          </div>
+          
+          <div className="space-y-4 pb-2 border-t border-border pt-4">
+            <h3 className="font-medium text-sm text-primary">{t('tp_mode')}</h3>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="radio" value="RR_RATIO" {...form.register('tpMode')} className="accent-primary" />
+                {t('rr_ratio')}
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="radio" value="MANUAL" {...form.register('tpMode')} className="accent-primary" />
+                {t('manual')}
+              </label>
+            </div>
+            <div className="grid gap-1.5">
+              <label className="text-sm text-muted-foreground">{t('rr_ratio')} (Default 2.0)</label>
+              <Input
+                type="number"
+                step="0.1"
+                disabled={form.watch('tpMode') !== 'RR_RATIO'}
+                {...form.register('tpRRValue', { valueAsNumber: true })}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>{t('cancel')}</Button>
+            <Button type="submit">{t('save')}</Button>
+          </div>
+        </form>
       </DialogContent>
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose}>انصراف</Button>
-        <Button onClick={handleSave} variant="contained">ذخیره تنظیمات</Button>
-      </DialogActions>
     </Dialog>
   );
-}
+};
