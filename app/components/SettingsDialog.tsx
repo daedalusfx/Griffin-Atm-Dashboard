@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-// ایمپورت‌های دیالوگ باید کامل باشند
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -35,9 +34,7 @@ export const SettingsDialog = ({ open, onClose, settings, onSave }: SettingsDial
   }, [open, settings, form]);
 
   return (
-    // در Shadcn باید از onOpenChange استفاده کنید
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      {/* DialogContent بدنه اصلی مودال را می‌سازد */}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('atm_settings')}</DialogTitle>
@@ -56,22 +53,35 @@ export const SettingsDialog = ({ open, onClose, settings, onSave }: SettingsDial
             <Input type="number" step="1" {...form.register('closePercent', { valueAsNumber: true })} />
           </div>
           
-          <div className="flex items-center justify-between">
-            <label className="text-sm">{t('move_to_be')}</label>
-            <Switch checked={form.watch('moveToBE')} onCheckedChange={(v) => form.setValue('moveToBE', v)} />
+          {/* چیدمان اصلاح شده برای سویچ اول */}
+          <div className="flex items-center gap-3 mt-2">
+            <Switch 
+              id="moveToBE"
+              checked={form.watch('moveToBE')} 
+              onCheckedChange={(v) => form.setValue('moveToBE', v)} 
+            />
+            <label htmlFor="moveToBE" className="text-sm cursor-pointer select-none">
+              {t('move_to_be')}
+            </label>
           </div>
           
-          <div className="p-4 border border-border rounded-lg relative space-y-4">
+          <div className="p-4 border border-border rounded-lg relative space-y-4 mt-6">
             <span className="absolute -top-3 px-2 bg-background text-xs text-primary font-medium">
               Trailing Stop
             </span>
-            <div className="flex items-center justify-between">
-              <label className="text-sm">{t('trailing_enabled')}</label>
+            
+            {/* چیدمان اصلاح شده برای سویچ دوم */}
+            <div className="flex items-center gap-3">
               <Switch
+                id="trailingEnabled"
                 checked={form.watch('trailingEnabled')}
                 onCheckedChange={(v) => form.setValue('trailingEnabled', v)}
               />
+              <label htmlFor="trailingEnabled" className="text-sm cursor-pointer select-none">
+                {t('trailing_enabled')}
+              </label>
             </div>
+            
             <div className="grid gap-2">
               <label className="text-sm">{t('trailing_atr')}</label>
               <Input
