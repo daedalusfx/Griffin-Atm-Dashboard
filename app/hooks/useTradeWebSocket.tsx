@@ -29,10 +29,26 @@ export const useTradeWebSocket = () => {
             else toast(message.data.message);
             break;
           case 'trade_signal':
-            toast.custom(() => (
-              <div>Signal: {message.data.action} | Ticket: #{message.data.provider_ticket}</div>
-            ));
-            break;
+           toast.custom((t) => (
+              <div
+                className={`${
+                  t.visible ? 'animate-in fade-in slide-in-from-top-2' : 'animate-out fade-out slide-out-to-top-2'
+                } bg-card border border-border text-card-foreground text-sm px-4 py-3 rounded-md shadow-lg flex items-center gap-3 max-w-sm w-full`}
+              >
+                {/* آیکون چشمک‌زن برای سیگنال */}
+                <span className="relative flex h-3 w-3 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                </span>
+                
+                {/* متن سیگنال */}
+                <div className="flex flex-col">
+                  <span className="font-semibold text-primary">{message.data.action}</span>
+                  <span className="text-muted-foreground text-xs">info: #{message.data.provider_ticket}</span>
+                </div>
+              </div>
+  ));
+  break;
         }
       } catch (e) {
         console.error('WS Parse Error', e);
