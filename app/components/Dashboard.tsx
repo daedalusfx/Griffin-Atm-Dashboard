@@ -9,11 +9,13 @@ import { ActionBar } from '@/app/components/ActionBar';
 import { SettingsDialog } from '@/app/components/SettingsDialog';
 import { MainSettingsDialog } from '@/app/components/MainSettingsDialog';
 import type { AtmSettings, MainSettingsType } from '@/app/schemas';
+import { LicenseDialog } from './LicenseDialog';
 
 export const Dashboard = () => {
   const [isDark, setIsDark] = useState(true);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isMainSettingsOpen, setMainSettingsOpen] = useState(false);
+  const [isLicenseSettingsOpen, setLicenseSettingsOpen] = useState(false);
 
   const symbol = useDashboardStore((state) => state.symbol);
   const settings = useDashboardStore((state) => state.settings);
@@ -40,6 +42,7 @@ export const Dashboard = () => {
         onToggleTheme={() => setIsDark(!isDark)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenMainSettings={() => setMainSettingsOpen(true)}
+        onOpenLicenseSettings={() => setLicenseSettingsOpen(true)}
       />
 
       <main className="flex-1 flex flex-col p-4 overflow-hidden container mx-auto max-w-7xl">
@@ -73,6 +76,11 @@ export const Dashboard = () => {
             'save_main_settings'
           )
         }
+      />
+
+            <LicenseDialog 
+        open={isLicenseSettingsOpen} 
+        onClose={() => setLicenseSettingsOpen(false)} 
       />
       <Toaster position="top-center" richColors theme={isDark ? 'dark' : 'light'} />
     </div>

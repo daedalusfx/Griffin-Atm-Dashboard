@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ReadyState } from 'react-use-websocket';
-import { Sun, Moon, Settings2, ShieldAlert, Wifi, WifiOff, Loader2, Globe } from 'lucide-react';
+import { Sun, Moon, Settings2, ShieldAlert, Wifi, WifiOff, Loader2, Globe, ShieldCheck } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { RelayController } from '@/app/components/RelayControler';
 
@@ -11,6 +11,7 @@ interface DashboardHeaderProps {
   onToggleTheme: () => void;
   onOpenSettings: () => void;
   onOpenMainSettings: () => void;
+  onOpenLicenseSettings: () => void;
 }
 
 export const DashboardHeader = ({
@@ -20,6 +21,7 @@ export const DashboardHeader = ({
   onToggleTheme,
   onOpenSettings,
   onOpenMainSettings,
+  onOpenLicenseSettings
 }: DashboardHeaderProps) => {
   const { t, i18n } = useTranslation();
 
@@ -63,6 +65,9 @@ export const DashboardHeader = ({
         <Button onClick={onOpenSettings} variant="outline" size="sm" className="hidden sm:flex">
           <Settings2 className="w-4 h-4 mx-2" /> {t('atm_settings')}
         </Button>
+            <Button onClick={onOpenLicenseSettings} variant="outline" size="sm" className="hidden sm:flex border-primary/50 text-primary">
+           <ShieldCheck className="w-4 h-4 mx-2" /> مجوز کپی‌ترید
+        </Button> 
         <Button onClick={onOpenMainSettings} variant="outline" size="sm" className="hidden sm:flex">
           <ShieldAlert className="w-4 h-4 mx-2" /> {t('risk_settings')}
         </Button>
