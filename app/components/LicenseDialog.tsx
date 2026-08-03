@@ -1,7 +1,7 @@
 // app/components/LicenseDialog.tsx
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Key, ShieldCheck, Loader2 } from 'lucide-react';
+import { Key, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -9,6 +9,7 @@ import { Switch } from '@/app/components/ui/switch';
 import { toast } from 'sonner';
 import { useLicenseStore } from '@/app/store/useLicenseStore';
 import { useConveyor } from '@/app/hooks/use-conveyor';
+import { useDashboardStore } from '../store/useDashboardStore';
 
 interface LicenseDialogProps {
   open: boolean;
@@ -18,6 +19,8 @@ interface LicenseDialogProps {
 export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
   const { t } = useTranslation();
   const serverApi = useConveyor('server');
+
+  const hwid = useDashboardStore((state) => state.hwid);
   
   const { 
     licenseKey, licenseMode, enableLocal, enableCloud, 
@@ -44,6 +47,7 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
 
   const verifyLicense = async () => {
     if (!inputKey.trim()) return toast.error('لطفاً کلید لایسنس را وارد کنید');
+    if (!hwid) return toast.error('ارتباط با متاتریدر برقرار نیست');
     
     setIsLoading(true);
     try {
@@ -51,7 +55,7 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
       const response = await fetch('http://localhost:3000/api/license/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey: inputKey, hwid: 'ELECTRON-USER-HWID' }), // بعداً HWID واقعی رو می‌گیریم
+        body: JSON.stringify({ licenseKey: inputKey, hwid: hwid }), // 👈 ارسال hwid واقعی متاتریدر
       });
 
       const data = await response.json();
@@ -92,12 +96,21 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
                 placeholder="GRIFFIN-XXXX-XXXX" 
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
+                disabled={!hwid} // 👈 اگر متاتریدر وصل نباشد قفل می‌شود
               />
             </div>
-            <Button onClick={verifyLicense} disabled={isLoading}>
+            <Button onClick={verifyLicense}  disabled={isLoading || !hwid}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'بررسی'}
             </Button>
           </div>
+
+          {/* هشدار اتصال به متاتریدر */}
+          {!hwid && (
+            <div className="flex items-center gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 mt-4 rounded border border-yellow-500/20">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>برای بررسی لایسنس، ابتدا اکسپرت را در متاتریدر اجرا کنید تا سخت‌افزار شناسایی شود.</span>
+            </div>
+          )}
 
           <div className="space-y-4 p-4 border border-border rounded-lg bg-card/50">
             <h4 className="text-sm font-medium mb-4">تنظیمات مسیردهی سیگنال</h4>

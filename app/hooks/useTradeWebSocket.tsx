@@ -6,7 +6,7 @@ import { useDashboardStore } from '@/app/store/useDashboardStore';
 import type { CommandPayload } from '@/app/types';
 
 export const useTradeWebSocket = () => {
-  const { setTradeData, setLoading, setSettings } = useDashboardStore();
+  const { setTradeData, setLoading, setSettings,setHwid } = useDashboardStore();
   const { t } = useTranslation();
 
   const { sendJsonMessage, readyState } = useWebSocket('ws://localhost:5000', {
@@ -17,6 +17,12 @@ export const useTradeWebSocket = () => {
       try {
         const message = JSON.parse(event.data);
         switch (message.type) {
+
+          case 'system_info': // 👈 کیس جدید برای دریافت سخت‌افزار
+            if (message.data?.hwid) {
+              setHwid(message.data.hwid);
+            }
+            break;
           case 'trade_data':
             setTradeData(message.data);
             break;

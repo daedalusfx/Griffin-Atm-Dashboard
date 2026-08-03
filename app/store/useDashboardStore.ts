@@ -9,11 +9,13 @@ interface DashboardState {
   settings: AtmSettings | null;
   mainSettings: MainSettingsType | null;
   loadingStates: Record<string, boolean>;
-
+  hwid: string | null; 
+  
   setTradeData: (data: any) => void;
   setSettings: (settings: AtmSettings) => void;
   setMainSettings: (mainSettings: MainSettingsType) => void;
   setLoading: (key: string, isLoading: boolean) => void;
+  setHwid: (hwid: string) => void; 
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -23,7 +25,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   settings: null,
   mainSettings: null,
   loadingStates: {},
-
+  hwid: null, 
+  
   setTradeData: (data) =>
     set((state) => ({
       trades: data.trades || [],
@@ -32,13 +35,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       settings: data.settings || state.settings,
       mainSettings: data.main_settings || state.mainSettings,
     })),
-
   setSettings: (settings) => set({ settings }),
-
   setMainSettings: (mainSettings) => set({ mainSettings }),
-
   setLoading: (key, isLoading) =>
     set((state) => ({
       loadingStates: { ...state.loadingStates, [key]: isLoading },
     })),
+  setHwid: (hwid) => set({ hwid }),
 }));
