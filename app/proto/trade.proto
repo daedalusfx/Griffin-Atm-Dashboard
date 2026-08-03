@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+// نام پکیج برای سازماندهی کدها (مخصوصاً وقتی سمت Rust جنریت می‌کنیم)
+package griffin.hft;
+
+// تعریف انواع اکشن‌ها برای فشرده‌سازی حداکثری به جای استرینگ
+enum SignalAction {
+  UNKNOWN_ACTION = 0;
+  OPEN_POSITION = 1;
+  PLACE_PENDING = 2;
+  CLOSE_POSITION = 3;
+  CANCEL_PENDING = 4;
+}
+
+// ساختار اصلی سیگنال که دقیقاً با نیازهای اکسپرت MQL5 مپ شده است
+message TradeSignal {
+  SignalAction action = 1;
+  uint64 provider_ticket = 2; // در MQL5 از نوع ulong است
+  string symbol = 3;
+  int32 order_type = 4;       // نوع اردر (Buy/Sell/Limit/Stop)
+  double price = 5;
+  double sl = 6;
+  double tp = 7;
+  
+  // یک فیلد زمان برای محاسبه پینگ و تاخیر (Latency) شبکه
+  uint64 timestamp = 8;
+}
