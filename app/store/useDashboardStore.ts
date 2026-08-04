@@ -9,13 +9,18 @@ interface DashboardState {
   settings: AtmSettings | null;
   mainSettings: MainSettingsType | null;
   loadingStates: Record<string, boolean>;
+  
   hwid: string | null; 
+  licenseKey: string | null; 
+  role: 'master' | 'slave' | null; 
   
   setTradeData: (data: any) => void;
   setSettings: (settings: AtmSettings) => void;
   setMainSettings: (mainSettings: MainSettingsType) => void;
   setLoading: (key: string, isLoading: boolean) => void;
+  
   setHwid: (hwid: string) => void; 
+  setAuthData: (licenseKey: string, role: 'master' | 'slave') => void; 
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -25,7 +30,10 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   settings: null,
   mainSettings: null,
   loadingStates: {},
-  hwid: null, 
+  
+  hwid: null,
+  licenseKey: null,
+  role: null,
   
   setTradeData: (data) =>
     set((state) => ({
@@ -41,5 +49,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set((state) => ({
       loadingStates: { ...state.loadingStates, [key]: isLoading },
     })),
+    
+  // ۴. توابع آپدیت بدون خطای تایپ
   setHwid: (hwid) => set({ hwid }),
+  setAuthData: (licenseKey, role) => set({ licenseKey, role }), 
 }));

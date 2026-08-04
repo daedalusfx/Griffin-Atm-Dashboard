@@ -1,103 +1,90 @@
+// app/hooks/useCloudSync.ts
 import { useRef, useState, useCallback } from 'react';
 import { useDashboardStore } from '@/app/store/useDashboardStore';
 import { protoService } from '@/app/lib/protoService'; // فایلی که در مرحله قبل ساختیم
 import { toast } from 'sonner'; // فرض بر این است که از این کتابخانه برای اعلان‌ها استفاده می‌کنید
 
-export const useCloudSync = () => {
+// 👈 اضافه کردن یک کالبک برای زمانی که سیگنال از ابری می‌آید
+export const useCloudSync = (onSignalReceived?: (signal: any) => void) => {
   const wsRef = useRef<WebSocket | null>(null);
-  
-  // استیت‌های اتصال به سرور ابری
   const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   
-  // خواندن مشخصات لاگین از استور اصلی
-  const hwid = useDashboardStore((state) => state.hwid);
-  // فرض می‌کنیم licenseKey بعد از تایید موفقیت‌آمیز در استور ذخیره می‌شود
-  const licenseKey = useDashboardStore((state) => (state as any).licenseKey); 
+  // خواندن اطلاعات امنیتی از استور
+  const { hwid, licenseKey, role } = useDashboardStore((state) => ({
+    hwid: state.hwid,
+    licenseKey: state.licenseKey,
+    role: state.role
+  }));
 
   const connectCloud = useCallback(() => {
-    if (!hwid || !licenseKey) {
-      toast.error('برای اتصال ابری، ابتدا لایسنس را تایید کنید.');
+    if (!hwid || !licenseKey || !role) {
+      toast.error('اطلاعات لایسنس کامل نیست.');
       return;
     }
 
     setCloudStatus('connecting');
-    
-    // آدرس روتر Rust (فعلاً روی لوکال)
     const ws = new WebSocket('ws://127.0.0.1:8080');
-    
-    // 👈 تنظیم نوع دریافت پیام روی باینری (برای فاز Slave بسیار مهم است)
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {
-      // ۱. ارسال پیام احراز هویت به صورت JSON (طبق فایل handler.rs شما)
-      const authPayload = {
-        license_key: licenseKey,
-        hwid: hwid,
-        role: 'master' // در این فاز، کلاینت فعلی صادرکننده سیگنال است
-      };
-      ws.send(JSON.stringify(authPayload));
+      // ارسال نقش واقعی بر اساس لایسنس
+      ws.send(JSON.stringify({ license_key: licenseKey, hwid, role }));
     };
 
     ws.onmessage = (event) => {
-      // ۲. پردازش پیام‌های سرور ابری
       if (typeof event.data === 'string') {
         try {
           const response = JSON.parse(event.data);
           if (response.status === 'success') {
             setCloudStatus('connected');
-            toast.success('🚀 ارتباط با سرور ابری HFT برقرار شد');
-          } else if (response.status === 'error') {
-            toast.error(response.message || 'خطا در احراز هویت ابری');
+            toast.success(`🚀 متصل به سرور ابری (حالت: ${role})`);
+          } else {
+            toast.error(response.message);
             ws.close();
           }
         } catch (e) {
-          console.error('Invalid JSON from cloud router', e);
+          console.error('Invalid JSON from cloud', e);
         }
-      } else {
-        // پیام‌های باینری (Protobuf): در فاز Master کاری با این بخش نداریم
-        // در فاز Slave، اینجا پیام را دی‌کد می‌کنیم
+      } 
+      // 👈 منطق فاز سوم: دریافت سیگنال باینری (فقط برای Slave)
+      else if (event.data instanceof ArrayBuffer) {
+        if (role === 'slave') {
+          try {
+            // ۱. تبدیل باینری به JSON
+            const decodedSignal = protoService.decodeSignal(new Uint8Array(event.data));
+            
+            // ۲. بازگرداندن فرمت اصلی برای متاتریدر محلی
+            const mql5Payload = {
+              type: 'trade_signal',
+              ...decodedSignal
+            };
+            
+            // ۳. ارسال به هوک محلی جهت شلیک به متاتریدر
+            if (onSignalReceived) {
+              onSignalReceived(mql5Payload);
+            }
+          } catch (error) {
+            console.error('Failed to decode cloud signal:', error);
+          }
+        }
       }
     };
 
-    ws.onclose = () => {
-      setCloudStatus('disconnected');
-      toast.error('ارتباط با سرور ابری قطع شد');
-      // نکته: منطق Reconnect خودکار را می‌توانیم در آینده اینجا اضافه کنیم
-    };
-
-    ws.onerror = (error) => {
-      console.error('Cloud WebSocket error:', error);
-      ws.close();
-    };
-
+    ws.onclose = () => setCloudStatus('disconnected');
     wsRef.current = ws;
-  }, [hwid, licenseKey]);
+  }, [hwid, licenseKey, role, onSignalReceived]);
 
-  const disconnectCloud = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-  }, []);
+  const disconnectCloud = useCallback(() => wsRef.current?.close(), []);
 
-  // ۳. متدی برای شلیک سیگنال به سمت Rust
   const broadcastSignal = useCallback((signalData: any) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && cloudStatus === 'connected') {
+    if (wsRef.current?.readyState === WebSocket.OPEN && role === 'master') {
       try {
-        // تبدیل دیتای خام متاتریدر به بایت‌های Protobuf
-        const binaryPayload = protoService.encodeSignal(signalData);
-        
-        // شلیک بایت‌ها به روتر
-        wsRef.current.send(binaryPayload);
+        wsRef.current.send(protoService.encodeSignal(signalData));
       } catch (error) {
-        console.error('Failed to encode and send signal:', error);
+        console.error('Encode error:', error);
       }
     }
-  }, [cloudStatus]);
+  }, [role]);
 
-  return {
-    cloudStatus,
-    connectCloud,
-    disconnectCloud,
-    broadcastSignal
-  };
+  return { cloudStatus, connectCloud, disconnectCloud, broadcastSignal };
 };
