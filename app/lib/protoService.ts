@@ -1,8 +1,7 @@
 // app/lib/protoService.ts
-import { Root, Type } from 'protobufjs';
+import { parse, Type } from 'protobufjs';
 
-// از آنجایی که در فرانت‌اند (Vite) خواندن مستقیم فایل با fs محدودیت دارد، 
-// می‌توانید ساختار proto را مستقیماً به صورت رشته لود کنید یا از Vite raw loader استفاده کنید.
+// تعریف ساختار باینری به صورت رشته (بدون نیاز به فایل‌سیستم)
 const protoDefinition = `
 syntax = "proto3";
 package griffin.hft;
@@ -28,12 +27,16 @@ message TradeSignal {
 `;
 
 class ProtoService {
-  private root: Root;
   private tradeSignalType: Type | null = null;
 
   constructor() {
-    this.root = Root.fromJSON(require('protobufjs').parse(protoDefinition).root);
-    this.tradeSignalType = this.root.lookupType('griffin.hft.TradeSignal');
+    try {
+      // استفاده مستقیم از متد parse که به صورت ES Module ایمپورت شده است
+      const parsed = parse(protoDefinition);
+      this.tradeSignalType = parsed.root.lookupType('griffin.hft.TradeSignal');
+    } catch (error) {
+      console.error("ProtoBuf Initialization Error:", error);
+    }
   }
 
   // تبدیل JSON متاتریدر به باینری (برای ارسال به Rust)
@@ -63,7 +66,7 @@ class ProtoService {
     return this.tradeSignalType.encode(message).finish();
   }
 
-  // تبدیل باینری به JSON (اگر از سرور Rust دیتایی برگشت)
+  // تبدیل باینری به JSON (زمانی که سرور Rust دیتایی برمی‌گرداند)
   decodeSignal(buffer: Uint8Array): any {
     if (!this.tradeSignalType) throw new Error("Proto Type not loaded");
     const message = this.tradeSignalType.decode(buffer);

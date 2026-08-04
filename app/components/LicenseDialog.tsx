@@ -20,7 +20,8 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
   const { t } = useTranslation();
   const serverApi = useConveyor('server');
 
-  const hwid = useDashboardStore((state) => state.hwid);
+  // استخراج hwid و متد setAuthData (برای موتور ابری) از استور اصلی
+  const { hwid, setAuthData } = useDashboardStore();
   
   const { 
     licenseKey, licenseMode, enableLocal, enableCloud, 
@@ -51,23 +52,46 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
     
     setIsLoading(true);
     try {
-      // ارتباط با NestJS (آدرس سرور خودت رو جایگزین کن)
-      const response = await fetch('http://localhost:3000/api/license/validate', {
+      // ارتباط با NestJS
+      const response = await fetch('http://localhost:3000/license/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey: inputKey, hwid: hwid }), // 👈 ارسال hwid واقعی متاتریدر
+        body: JSON.stringify({ licenseKey: inputKey.trim(), hwid: hwid }), // ارسال hwid واقعی متاتریدر
       });
 
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        setLicenseData(inputKey, data.copyTradeMode || 'DISABLED');
-        toast.success('لایسنس با موفقیت تایید شد');
+        // ۱. آپدیت استورِ لایسنس (برای UI و رله محلی)
+        setLicenseData(inputKey.trim(), data.copyTradeMode || 'DISABLED');
+        
+        // ۲. مپ کردن نقش کاربر برای موتور ابری (HFT)
+        let assignedRole: 'master' | 'slave' | null = null;
+        if (data.type === 'copy_trading_slave') {
+          assignedRole = 'slave';
+        } else if (data.type === 'pro' || data.type === 'trial') {
+          assignedRole = 'master'; 
+        }
+
+        // ۳. ذخیره نقش در استور داشبورد (این کار باعث اتصال خودکار وب‌سوکت کلود می‌شود)
+        if (assignedRole) {
+          setAuthData(inputKey.trim(), assignedRole);
+        }
+
+        toast.success('لایسنس با موفقیت تایید شد', {
+          description: data.message
+        });
+        
+        // در صورت نیاز به بسته شدن خودکار مدال:
+        // onClose();
       } else {
-        toast.error(data.message || 'لایسنس نامعتبر است');
+        toast.error('خطا در اعتبارسنجی', {
+          description: data.message || 'لایسنس نامعتبر است'
+        });
         setLicenseData('', 'DISABLED');
       }
     } catch (error) {
+      console.error('License API Error:', error);
       toast.error('خطا در ارتباط با سرور تایید لایسنس');
     } finally {
       setIsLoading(false);
@@ -95,11 +119,12 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
                 className="pl-9 font-mono text-sm" 
                 placeholder="GRIFFIN-XXXX-XXXX" 
                 value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
-                disabled={!hwid} // 👈 اگر متاتریدر وصل نباشد قفل می‌شود
+                onChange={(e) => setInputKey(e.target.value.toUpperCase())}
+                disabled={!hwid} // اگر متاتریدر وصل نباشد قفل می‌شود
+                dir="ltr"
               />
             </div>
-            <Button onClick={verifyLicense}  disabled={isLoading || !hwid}>
+            <Button onClick={verifyLicense} disabled={isLoading || !hwid}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'بررسی'}
             </Button>
           </div>

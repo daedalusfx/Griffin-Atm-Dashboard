@@ -10,11 +10,9 @@ export const useCloudSync = (onSignalReceived?: (signal: any) => void) => {
   const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   
   // خواندن اطلاعات امنیتی از استور
-  const { hwid, licenseKey, role } = useDashboardStore((state) => ({
-    hwid: state.hwid,
-    licenseKey: state.licenseKey,
-    role: state.role
-  }));
+  const hwid = useDashboardStore((state) => state.hwid);
+  const licenseKey = useDashboardStore((state) => state.licenseKey);
+  const role = useDashboardStore((state) => state.role);
 
   const connectCloud = useCallback(() => {
     if (!hwid || !licenseKey || !role) {

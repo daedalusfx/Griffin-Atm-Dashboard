@@ -37,6 +37,9 @@ export function createAppWindow(): void {
   registerWindowHandlers(mainWindow)
   registerAppHandlers(app)
 
+  mainWindow.webContents.openDevTools();
+
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
