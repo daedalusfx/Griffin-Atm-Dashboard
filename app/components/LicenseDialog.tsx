@@ -1,15 +1,14 @@
-// app/components/LicenseDialog.tsx
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Key, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import { Key, ShieldCheck, Loader2, AlertCircle, Server, Cloud } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
 import { Switch } from '@/app/components/ui/switch';
+import { Input } from '@/app/components/ui/input';
 import { toast } from 'sonner';
 import { useLicenseStore } from '@/app/store/useLicenseStore';
-import { useConveyor } from '@/app/hooks/use-conveyor';
 import { useDashboardStore } from '../store/useDashboardStore';
+import { useConveyor } from '@/app/hooks/use-conveyor';
 
 interface LicenseDialogProps {
   open: boolean;
@@ -18,83 +17,62 @@ interface LicenseDialogProps {
 
 export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
   const { t } = useTranslation();
-  const serverApi = useConveyor('server');
-
-  // استخراج hwid و متد setAuthData (برای موتور ابری) از استور اصلی
   const { hwid, setAuthData } = useDashboardStore();
+  const serverApi = useConveyor('server');
   
   const { 
     licenseKey, licenseMode, enableLocal, enableCloud, 
     setLicenseData, setEnableLocal, setEnableCloud 
   } = useLicenseStore();
-
+  
   const [inputKey, setInputKey] = useState(licenseKey);
   const [isLoading, setIsLoading] = useState(false);
 
-  // سینک کردن مقدار اینپوت با استور در زمان باز شدن
   useEffect(() => {
     if (open) setInputKey(licenseKey);
   }, [open, licenseKey]);
 
-  // هندل کردن تغییر وضعیت رله محلی (فقط آپدیت استیت)
-  const handleLocalToggle = (checked: boolean) => {
-    setEnableLocal(checked);
-    if (checked) {
-      toast.info('حالت رله محلی باز شد. می‌توانید آن را از نوار بالا استارت کنید.');
-    } else {
-      toast.info('حالت رله محلی قفل شد.');
-    }
-  };
-
   const verifyLicense = async () => {
-    if (!inputKey.trim()) return toast.error('لطفاً کلید لایسنس را وارد کنید');
-    if (!hwid) return toast.error('ارتباط با متاتریدر برقرار نیست');
-    
+    if (!inputKey.trim()) return toast.error('لطفاً لایسنس را وارد کنید.');
+    if (!hwid) return toast.error('شناسه سخت‌افزاری یافت نشد.');
+
     setIsLoading(true);
     try {
-      // ارتباط با NestJS
-      const response = await fetch('http://localhost:3000/license/validate', {
+      const response = await fetch('http://localhost:8595/api/license/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey: inputKey.trim(), hwid: hwid }), // ارسال hwid واقعی متاتریدر
+        body: JSON.stringify({ licenseKey: inputKey.trim(), hwid: hwid }),
       });
-
+      
       const data = await response.json();
-
+      
       if (response.ok && data.status === 'success') {
-        // ۱. آپدیت استورِ لایسنس (برای UI و رله محلی)
-        setLicenseData(inputKey.trim(), data.copyTradeMode || 'DISABLED');
-        
-        // ۲. مپ کردن نقش کاربر برای موتور ابری (HFT)
-        let assignedRole: 'master' | 'slave' | null = null;
-        if (data.type === 'copy_trading_slave') {
-          assignedRole = 'slave';
-        } else if (data.type === 'pro' || data.type === 'trial') {
-          assignedRole = 'master'; 
+        if (data.type === 'pro' || data.type === 'trial') {
+          // دریافت سطح دسترسی کپی‌ترید از سرور (LOCAL, CLOUD, BOTH)
+          setLicenseData(inputKey.trim(), data.copyTradeMode || 'BOTH');
+          setAuthData(inputKey.trim(), 'master');
+          toast.success('لایسنس تایید شد.', { description: data.message });
+        } else {
+          toast.error('این داشبورد مخصوص ارائه‌دهندگان سیگنال است.');
         }
-
-        // ۳. ذخیره نقش در استور داشبورد (این کار باعث اتصال خودکار وب‌سوکت کلود می‌شود)
-        if (assignedRole) {
-          setAuthData(inputKey.trim(), assignedRole);
-        }
-
-        toast.success('لایسنس با موفقیت تایید شد', {
-          description: data.message
-        });
-        
-        // در صورت نیاز به بسته شدن خودکار مدال:
-        // onClose();
       } else {
-        toast.error('خطا در اعتبارسنجی', {
-          description: data.message || 'لایسنس نامعتبر است'
-        });
+        toast.error('خطا در بررسی لایسنس', { description: data.message });
         setLicenseData('', 'DISABLED');
       }
     } catch (error) {
-      console.error('License API Error:', error);
-      toast.error('خطا در ارتباط با سرور تایید لایسنس');
+      toast.error('خطا در ارتباط با سرور.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLocalToggle = async (checked: boolean) => {
+    setEnableLocal(checked);
+    if (checked) {
+      toast.info('حالت کپی محلی فعال شد. از بالا سرور رله را استارت کنید.');
+    } else {
+      await serverApi.stop();
+      toast.info('حالت کپی محلی خاموش شد.');
     }
   };
 
@@ -107,20 +85,20 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
-            مجوز و کپی‌ترید
+            تنظیمات لایسنس و کپی‌تریدینگ
           </DialogTitle>
         </DialogHeader>
-
+        
         <div className="space-y-6 mt-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Key className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                className="pl-9 font-mono text-sm" 
-                placeholder="GRIFFIN-XXXX-XXXX" 
+              <Input
+                className="pl-9 font-mono text-sm"
+                placeholder="GRIFFIN-XXXX-XXXX"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value.toUpperCase())}
-                disabled={!hwid} // اگر متاتریدر وصل نباشد قفل می‌شود
+                disabled={!hwid}
                 dir="ltr"
               />
             </div>
@@ -129,43 +107,52 @@ export const LicenseDialog = ({ open, onClose }: LicenseDialogProps) => {
             </Button>
           </div>
 
-          {/* هشدار اتصال به متاتریدر */}
           {!hwid && (
             <div className="flex items-center gap-2 text-xs text-yellow-500 bg-yellow-500/10 p-2 mt-4 rounded border border-yellow-500/20">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>برای بررسی لایسنس، ابتدا اکسپرت را در متاتریدر اجرا کنید تا سخت‌افزار شناسایی شود.</span>
+              <span>در حال خواندن شناسه از متاتریدر...</span>
             </div>
           )}
 
+          {/* پنل انتخاب مسیر کپی‌ترید */}
           <div className="space-y-4 p-4 border border-border rounded-lg bg-card/50">
-            <h4 className="text-sm font-medium mb-4">تنظیمات مسیردهی سیگنال</h4>
+            <h4 className="text-sm font-medium mb-2 border-b border-border pb-2">مسیر ارسال سیگنال‌ها</h4>
             
+            {/* گزینه Local */}
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <label className="text-sm font-medium cursor-pointer" htmlFor="local-toggle">رله شبکه محلی (Local)</label>
-                <p className="text-xs text-muted-foreground">ارسال به متاتریدرهای روی همین سیستم</p>
+              <div className="space-y-0.5 flex items-center gap-2">
+                <Server className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <label className="text-sm font-medium cursor-pointer" htmlFor="local-toggle">شبکه محلی (Local LAN/VPS)</label>
+                  <p className="text-xs text-muted-foreground">کپی روی همین سیستم بدون نیاز به اینترنت</p>
+                </div>
               </div>
-              <Switch 
-                id="local-toggle" 
-                checked={enableLocal} 
+              <Switch
+                id="local-toggle"
+                checked={enableLocal}
                 onCheckedChange={handleLocalToggle}
-                disabled={!isLocalAllowed} 
+                disabled={!isLocalAllowed}
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <label className="text-sm font-medium cursor-pointer" htmlFor="cloud-toggle">موتور ابری (Cloud HFT)</label>
-                <p className="text-xs text-muted-foreground">ارسال پرسرعت سیگنال روی اینترنت</p>
+            {/* گزینه Cloud */}
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+              <div className="space-y-0.5 flex items-center gap-2">
+                <Cloud className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <label className="text-sm font-medium cursor-pointer" htmlFor="cloud-toggle">شبکه ابری (Cloud HFT)</label>
+                  <p className="text-xs text-muted-foreground">ارسال به روتر زنگار (Rust) برای مشتریان راه دور</p>
+                </div>
               </div>
-              <Switch 
-                id="cloud-toggle" 
-                checked={enableCloud} 
+              <Switch
+                id="cloud-toggle"
+                checked={enableCloud}
                 onCheckedChange={(v) => setEnableCloud(v)}
-                disabled={!isCloudAllowed} 
+                disabled={!isCloudAllowed}
               />
             </div>
           </div>
+          
         </div>
       </DialogContent>
     </Dialog>

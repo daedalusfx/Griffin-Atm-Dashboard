@@ -1,32 +1,32 @@
-// app/hooks/useCloudSync.ts
 import { useRef, useState, useCallback } from 'react';
 import { useDashboardStore } from '@/app/store/useDashboardStore';
-import { protoService } from '@/app/lib/protoService'; // فایلی که در مرحله قبل ساختیم
-import { toast } from 'sonner'; // فرض بر این است که از این کتابخانه برای اعلان‌ها استفاده می‌کنید
+import { useLicenseStore } from '@/app/store/useLicenseStore';
+import { protoService } from '@/app/lib/protoService';
+import { toast } from 'sonner';
 
-// 👈 اضافه کردن یک کالبک برای زمانی که سیگنال از ابری می‌آید
-export const useCloudSync = (onSignalReceived?: (signal: any) => void) => {
+export const useCloudSync = () => {
   const wsRef = useRef<WebSocket | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   
-  // خواندن اطلاعات امنیتی از استور
   const hwid = useDashboardStore((state) => state.hwid);
-  const licenseKey = useDashboardStore((state) => state.licenseKey);
-  const role = useDashboardStore((state) => state.role);
+  const relayToken = useLicenseStore((state) => state.relayToken); // توکنی که قراره روش سیگنال بفرستیم
 
   const connectCloud = useCallback(() => {
-    if (!hwid || !licenseKey || !role) {
-      toast.error('اطلاعات لایسنس کامل نیست.');
+    if (!hwid) return toast.error('خطای سیستمی: HWID موجود نیست.');
+
+    // از آنجایی که این پنل فقط برای Master است، برای اتصال به کلود فقط به توکن PRV نیاز داریم
+    if (!relayToken || !relayToken.startsWith('PRV-')) {
+      toast.error('جهت اتصال به سرور ابری، لطفاً توکن انتشار (PRV) معتبر وارد کنید.');
       return;
     }
-
+         
     setCloudStatus('connecting');
-    const ws = new WebSocket('ws://127.0.0.1:8080');
+    const ws = new WebSocket('ws://127.0.0.1:8080'); // آدرس روتر Rust
     ws.binaryType = 'arraybuffer';
-
+    
     ws.onopen = () => {
-      // ارسال نقش واقعی بر اساس لایسنس
-      ws.send(JSON.stringify({ license_key: licenseKey, hwid, role }));
+      // 👈 همیشه با نقش Master متصل می‌شویم تا مجوز Broadcast بگیریم
+      ws.send(JSON.stringify({ license_key: relayToken, hwid, role: 'master' }));
     };
 
     ws.onmessage = (event) => {
@@ -35,54 +35,37 @@ export const useCloudSync = (onSignalReceived?: (signal: any) => void) => {
           const response = JSON.parse(event.data);
           if (response.status === 'success') {
             setCloudStatus('connected');
-            toast.success(`🚀 متصل به سرور ابری (حالت: ${role})`);
+            toast.success('اتصال ابری موفق: آماده انتشار سیگنال با سرعت نور ⚡');
           } else {
-            toast.error(response.message);
+            toast.error(`خطا از سرور کلود: ${response.message}`);
             ws.close();
           }
         } catch (e) {
-          console.error('Invalid JSON from cloud', e);
-        }
-      } 
-      // 👈 منطق فاز سوم: دریافت سیگنال باینری (فقط برای Slave)
-      else if (event.data instanceof ArrayBuffer) {
-        if (role === 'slave') {
-          try {
-            // ۱. تبدیل باینری به JSON
-            const decodedSignal = protoService.decodeSignal(new Uint8Array(event.data));
-            
-            // ۲. بازگرداندن فرمت اصلی برای متاتریدر محلی
-            const mql5Payload = {
-              type: 'trade_signal',
-              ...decodedSignal
-            };
-            
-            // ۳. ارسال به هوک محلی جهت شلیک به متاتریدر
-            if (onSignalReceived) {
-              onSignalReceived(mql5Payload);
-            }
-          } catch (error) {
-            console.error('Failed to decode cloud signal:', error);
-          }
+          console.error('Invalid JSON from cloud router', e);
         }
       }
     };
 
     ws.onclose = () => setCloudStatus('disconnected');
     wsRef.current = ws;
-  }, [hwid, licenseKey, role, onSignalReceived]);
+  }, [hwid, relayToken]);
 
-  const disconnectCloud = useCallback(() => wsRef.current?.close(), []);
+  const disconnectCloud = useCallback(() => {
+      if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+      }
+  }, []);
 
   const broadcastSignal = useCallback((signalData: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && role === 'master') {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       try {
         wsRef.current.send(protoService.encodeSignal(signalData));
       } catch (error) {
         console.error('Encode error:', error);
       }
     }
-  }, [role]);
+  }, []);
 
   return { cloudStatus, connectCloud, disconnectCloud, broadcastSignal };
 };

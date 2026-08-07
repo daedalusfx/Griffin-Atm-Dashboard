@@ -75,7 +75,7 @@ export const useTradeWebSocket = () => {
   }, [readyState, sendJsonMessage]);
 
   // ۳. راه‌اندازی ارتباط ابری و پاس دادن پستچی محلی به آن برای حالت Slave
-  const { broadcastSignal, cloudStatus } = useCloudSync(sendToLocalMT5);
+  const { broadcastSignal, cloudStatus } = useCloudSync();
 
   // ۴. آپدیت کردن رفرنس ارسال ابری (تا همیشه جدیدترین نسخه تابع در دسترس متاتریدر باشد)
   useEffect(() => {
