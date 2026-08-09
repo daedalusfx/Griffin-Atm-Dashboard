@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { useDashboardStore } from '@/app/store/useDashboardStore';
 import { useLicenseStore } from '@/app/store/useLicenseStore';
 import { protoService } from '@/app/lib/protoService';
@@ -9,49 +9,69 @@ export const useCloudSync = () => {
   const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   
   const hwid = useDashboardStore((state) => state.hwid);
-  const relayToken = useLicenseStore((state) => state.relayToken); // توکنی که قراره روش سیگنال بفرستیم
+  // تغییر ۱: گرفتن licenseKey به جای relayToken
+  const licenseKey = useLicenseStore((state) => state.licenseKey); 
 
   const connectCloud = useCallback(() => {
-    if (!hwid) return toast.error('خطای سیستمی: HWID موجود نیست.');
-
-    // از آنجایی که این پنل فقط برای Master است، برای اتصال به کلود فقط به توکن PRV نیاز داریم
-    if (!relayToken || !relayToken.startsWith('PRV-')) {
-      toast.error('جهت اتصال به سرور ابری، لطفاً توکن انتشار (PRV) معتبر وارد کنید.');
+    if (!hwid) {
+      console.error('[CloudSync] Connection failed: HWID is missing.');
+      return toast.error('خطا: HWID یافت نشد.');
+    }
+    
+    // تغییر ۲: حذف شرط PRV- و چک کردن فقط خود لایسنس
+    if (!licenseKey) {
+      console.error('[CloudSync] Connection failed: Invalid License Key.');
+      toast.error('لایسنس برای اتصال به کلود معتبر نیست.');
       return;
     }
-         
+
+    console.log(`[CloudSync] Attempting to connect to Cloud Server at ws://127.0.0.1:8080...`);
     setCloudStatus('connecting');
-    const ws = new WebSocket('ws://127.0.0.1:8080'); // آدرس روتر Rust
+    const ws = new WebSocket('ws://127.0.0.1:8080'); // آدرس سرور کلود
     ws.binaryType = 'arraybuffer';
     
     ws.onopen = () => {
-      // 👈 همیشه با نقش Master متصل می‌شویم تا مجوز Broadcast بگیریم
-      ws.send(JSON.stringify({ license_key: relayToken, hwid, role: 'master' }));
+      console.log('[CloudSync] WS Opened. Sending Auth Payload as MASTER...');
+      // تغییر ۳: استفاده از licenseKey در Payload
+      const authPayload = { license_key: licenseKey, hwid, role: 'master' };
+      ws.send(JSON.stringify(authPayload));
     };
 
     ws.onmessage = (event) => {
       if (typeof event.data === 'string') {
         try {
           const response = JSON.parse(event.data);
+          console.log('[CloudSync] Message from server:', response);
+          
           if (response.status === 'success') {
             setCloudStatus('connected');
-            toast.success('اتصال ابری موفق: آماده انتشار سیگنال با سرعت نور ⚡');
+            toast.success('اتصال به سرور ابری (Master) برقرار شد!');
           } else {
-            toast.error(`خطا از سرور کلود: ${response.message}`);
+            toast.error(`خطای سرور ابری: ${response.message}`);
             ws.close();
           }
         } catch (e) {
-          console.error('Invalid JSON from cloud router', e);
+          console.error('[CloudSync] Invalid JSON from cloud router', e);
         }
       }
     };
 
-    ws.onclose = () => setCloudStatus('disconnected');
+    ws.onclose = (e) => {
+      console.warn(`[CloudSync] Connection closed. Code: ${e.code}, Reason: ${e.reason}`);
+      setCloudStatus('disconnected');
+      toast.info('اتصال ابری قطع شد.');
+    };
+
+    ws.onerror = (error) => {
+      console.error('[CloudSync] WebSocket Error:', error);
+    };
+
     wsRef.current = ws;
-  }, [hwid, relayToken]);
+  }, [hwid, licenseKey]); // وابستگی‌ها آپدیت شد
 
   const disconnectCloud = useCallback(() => {
       if (wsRef.current) {
+          console.log('[CloudSync] Manually disconnecting...');
           wsRef.current.close();
           wsRef.current = null;
       }
@@ -60,12 +80,29 @@ export const useCloudSync = () => {
   const broadcastSignal = useCallback((signalData: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       try {
-        wsRef.current.send(protoService.encodeSignal(signalData));
+        console.log('[CloudSync] Encoding and sending signal to Cloud:', signalData);
+        const encodedData = protoService.encodeSignal(signalData);
+        wsRef.current.send(encodedData);
+        console.log('[CloudSync] Signal successfully sent to Cloud!');
       } catch (error) {
-        console.error('Encode error:', error);
+        console.error('[CloudSync] Encode/Send error:', error);
       }
+    } else {
+      console.warn('[CloudSync] Ignored signal send: WebSocket is not open.');
     }
   }, []);
+
+  // تغییر ۴: اصلاح شرط وصل شدن اتوماتیک
+  useEffect(() => {
+    if (
+      hwid && 
+      licenseKey && 
+      cloudStatus === 'disconnected'
+    ) {
+      console.log('[CloudSync] Credentials found. Auto-connecting to cloud...');
+      connectCloud();
+    }
+  }, [hwid, licenseKey, cloudStatus, connectCloud]); // وابستگی‌ها آپدیت شد
 
   return { cloudStatus, connectCloud, disconnectCloud, broadcastSignal };
 };
