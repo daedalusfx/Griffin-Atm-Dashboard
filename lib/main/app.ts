@@ -6,12 +6,14 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { registerResourcesProtocol } from './protocols'
 import { stopServer } from './server'
+import { registerCloudHandlers } from '../conveyor/handlers/cloud-handler'
 
 
 export function createAppWindow(): void {
   // Register custom protocol for resources
   registerResourcesProtocol();
   registerServerHandlers(); 
+  registerCloudHandlers();
 
 
   // Create the main window.
