@@ -79,3 +79,15 @@ jobs:
             release-assets/**/*.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+          # مرحله آپلود در MEGA.nz
+      - name: Upload to MEGA.nz
+        uses: Difegue/action-megacmd@master
+        with:
+          # دستور put کل پوشه دانلود شده را در مگا آپلود می‌کند.
+          # با استفاده از متغیر github.ref_name یک پوشه با نام تگ (مثلاً /v1.0.0) در فضای ابری ایجاد می‌شود.
+          args: put release-assets /${{ github.ref_name }}
+        env:
+          USERNAME: ${{ secrets.MEGA_USERNAME }}
+          PASSWORD: ${{ secrets.MEGA_PASSWORD }}
